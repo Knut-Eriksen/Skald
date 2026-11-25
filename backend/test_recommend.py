@@ -71,6 +71,16 @@ def test_moods_feel_human():
     assert gem.index("small") < gem.index("big") and popular.index("big") < popular.index("small")
 
 
+def test_mix_keeps_new_finds():
+    films = {f"w{i}": film(f"w{i}", ["Adventure"], ["Epic adventure"], rating=4.2, director=f"w{i}") for i in range(12)}
+    films |= {f"d{i}": film(f"d{i}", ["Adventure"], ["Epic adventure"], rating=3.6, director=f"d{i}") for i in range(12)}
+    u = user("ana", [], watchlist=[s for s in films if s[0] == "w"])
+    pool = Pool(users=[u], films=films, seeds={"ana": []}, watchlisted=watchlist_candidates([u])[0],
+                discovered={s: [] for s in films if s[0] == "d"})
+    picks = recommend(pool, {"moods": ["epic"], "source": "mix"}, limit=9)
+    assert sum(p["source"] == "discovery" for p in picks) >= 3  # watchlist films are better rated, finds still show
+
+
 def test_mood_word_boundaries():
     assert mood_score(film("v", ["Drama"], ["Intense violence"]), "tense")[0] == 0  # "tense" ≠ "intense"
     assert mood_score(film("p", ["Family"], ["Heartwarming and charming family"]), "cozy")[0] > 0.6
@@ -79,5 +89,6 @@ def test_mood_word_boundaries():
 if __name__ == "__main__":
     test_recommend()
     test_moods_feel_human()
+    test_mix_keeps_new_finds()
     test_mood_word_boundaries()
     print("ok")

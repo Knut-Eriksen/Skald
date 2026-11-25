@@ -3,6 +3,7 @@
 No I/O in here, so it is fast enough to re-score live while the vibe is tweaked.
 """
 import math
+from bisect import bisect_left, bisect_right
 import re
 from functools import lru_cache
 from collections import Counter, defaultdict
@@ -317,9 +318,10 @@ def taste(fv: dict[str, float], prof: dict[str, float], idf: dict[str, float]) -
 
 def _rank01(values: dict[str, float]) -> dict[str, float]:
     """Percentile rank in [0, 1] (robust to wildly different profile scales)."""
-    order = sorted(values, key=values.get)
-    n = max(len(order) - 1, 1)
-    return {s: i / n for i, s in enumerate(order)}
+    vals = sorted(values.values())
+    n = max(len(vals) - 1, 1)
+    # ties share their midpoint rank, so films nobody's taste says anything about all land in the middle
+    return {s: (bisect_left(vals, v) + bisect_right(vals, v) - 1) / 2 / n for s, v in values.items()}
 
 
 def _names(names: list[str]) -> str:
@@ -377,7 +379,7 @@ def recommend(pool: Pool, answers: dict | None = None, limit: int = 30) -> list[
         fits = [sc for _, sc, _ in moods]
         wl = len(pool.watchlisted.get(s, ())) / n_users
         # what you'd pick with no mood in mind: your taste, how good it is, whether you saved it
-        score = 0.5 * group_taste + 0.25 * quality(f) + 0.25 * wl
+        score = 0.55 * group_taste + 0.3 * quality(f) + 0.15 * wl
         if fits:  # a mood is a request, not a nudge: the film has to *be* it. Two moods = a blend of both.
             vibe = 0.6 * max(fits) + 0.4 * min(fits)
             score *= 0.15 + 0.85 * vibe ** 1.3
@@ -396,7 +398,7 @@ def recommend(pool: Pool, answers: dict | None = None, limit: int = 30) -> list[
 
     # light diversity: don't stack one director
     picked, director_count = [], Counter()
-    for score, s, moods, tastes in scored[: limit * 4]:
+    for score, s, moods, tastes in scored:  # all of them, so "mix" has discoveries to draw on
         f = pool.films[s]
         pen = 0.85 ** sum(director_count[d] for d in f.directors)
         picked.append((score * pen, s, moods, tastes))
@@ -407,9 +409,7 @@ def recommend(pool: Pool, answers: dict | None = None, limit: int = 30) -> list[
         d = [x for x in picked if x[1] not in pool.watchlisted]
         merged = []
         while w or d:
-            strong_d = d and d[0][0] >= 0.65 * picked[0][0]
-            need_d = d and (not w or (strong_d and len(merged) % 3 == 2
-                                      and all(m[1] in pool.watchlisted for m in merged[-2:])))
+            need_d = d and (not w or (len(merged) % 3 == 2 and d[0][0] >= 0.4 * picked[0][0]))
             take = d if need_d or (d and w and d[0][0] > w[0][0]) else (w or d)
             merged.append(take.pop(0))
         picked = merged
