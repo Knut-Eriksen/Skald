@@ -4,7 +4,8 @@ import { api, fmtRuntime, type Answers, type Film, type Member, type Pick, type 
 import { steps } from './Quiz'
 import { Avatar, Icon, Overlay, stars, Toast, TrailerModal } from './ui'
 
-const ease = [0.22, 1, 0.36, 1] as const
+const ease = [0.23, 1, 0.32, 1] as const
+const drawerEase = [0.32, 0.72, 0, 1] as const
 const reasonIcon = { watchlist: 'bookmark', taste: 'heart', vibe: 'sparkle' } as const
 
 function Poster({ film, eager }: { film: Film; eager?: boolean }) {
@@ -56,7 +57,7 @@ function Hero({ pick, members, onTrailer, onSkip, skipLabel }: { pick: Pick; mem
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          transition={{ duration: 1.1 }}
+          transition={{ duration: 0.6 }}
         >
           {(f.backdrop || f.poster) && (
             <motion.img
@@ -77,11 +78,11 @@ function Hero({ pick, members, onTrailer, onSkip, skipLabel }: { pick: Pick; mem
           initial="hidden"
           animate="show"
           exit="exit"
-          variants={{ hidden: {}, show: { transition: { staggerChildren: 0.07 } }, exit: { opacity: 0, transition: { duration: 0.25 } } }}
+          variants={{ hidden: {}, show: { transition: { staggerChildren: 0.04 } }, exit: { opacity: 0, transition: { duration: 0.15 } } }}
         >
           <div className="hero-copy">
             {(['eyebrow', 'title', 'meta', 'tagline', 'syn', 'reasons', 'actions'] as const).map((part) => (
-              <motion.div key={part} variants={{ hidden: { opacity: 0, y: 18 }, show: { opacity: 1, y: 0, transition: { duration: 0.7, ease } } }}>
+              <motion.div key={part} variants={{ hidden: { opacity: 0, y: 10 }, show: { opacity: 1, y: 0, transition: { duration: 0.32, ease } } }}>
                 {part === 'eyebrow' && <span className="eyebrow accent">{skipLabel}</span>}
                 {part === 'title' && <h1 className="display hero-title">{f.title}</h1>}
                 {part === 'meta' && (
@@ -127,7 +128,7 @@ function Hero({ pick, members, onTrailer, onSkip, skipLabel }: { pick: Pick; mem
             ))}
           </div>
 
-          <motion.aside className="hero-side" variants={{ hidden: { opacity: 0, y: 24 }, show: { opacity: 1, y: 0, transition: { duration: 0.9, ease } } }}>
+          <motion.aside className="hero-side" variants={{ hidden: { opacity: 0, y: 12, scale: 0.98 }, show: { opacity: 1, y: 0, scale: 1, transition: { duration: 0.4, ease } } }}>
             <div className="poster">
               <Poster film={f} eager />
             </div>
@@ -164,11 +165,9 @@ function Card({ pick, onClick, i }: { pick: Pick; onClick: () => void; i: number
     <motion.button
       className="card"
       onClick={onClick}
-      layout
-      initial={{ opacity: 0, y: 20 }}
+      initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, scale: 0.95 }}
-      transition={{ duration: 0.5, delay: Math.min(i, 12) * 0.03, ease }}
+      transition={{ duration: 0.35, delay: Math.min(i, 10) * 0.025, ease }}
     >
       <div className="poster">
         <Poster film={f} />
@@ -195,7 +194,7 @@ function Card({ pick, onClick, i }: { pick: Pick; onClick: () => void; i: number
 function Tune({ open, onClose, answers, onChange, solo }: { open: boolean; onClose: () => void; answers: Answers; onChange: (a: Answers) => void; solo: boolean }) {
   return (
     <Overlay open={open} onClose={onClose}>
-      <motion.aside className="drawer" initial={{ x: '100%' }} animate={{ x: 0 }} exit={{ x: '100%' }} transition={{ duration: 0.45, ease }} aria-label="Adjust the vibe">
+      <motion.aside className="drawer" initial={{ x: '100%' }} animate={{ x: 0, transition: { duration: 0.4, ease: drawerEase } }} exit={{ x: '100%', transition: { duration: 0.25, ease: drawerEase } }} aria-label="Adjust the vibe">
         <header>
           <h3 className="display">Adjust the vibe</h3>
           <button className="btn icon small ghost" onClick={onClose} aria-label="Close">
@@ -376,8 +375,8 @@ export default function Results({ data, answers, onAnswers, busy }: { data: R; a
             </button>
           </div>
         </div>
-        <motion.div className="grid" layout style={{ opacity: busy ? 0.5 : 1, transition: 'opacity .3s' }}>
-          <AnimatePresence mode="popLayout">
+        {/* no layout animation: 120 cards animating layout on the main thread janks every filter toggle */}
+        <div className="grid" style={{ opacity: busy ? 0.5 : 1, transition: 'opacity 200ms ease' }}>
             {rest.map((p, i) => (
               <Card
                 key={p.film.slug}
@@ -389,8 +388,7 @@ export default function Results({ data, answers, onAnswers, busy }: { data: R; a
                 }}
               />
             ))}
-          </AnimatePresence>
-        </motion.div>
+        </div>
         {rest.length === 0 && <div className="empty">Nothing in this shelf with the current vibe.</div>}
         <p className="stats-line" style={{ marginTop: 56 }}>
           Weighed {data.stats.considered.toLocaleString()} films · {data.stats.watchlisted.toLocaleString()} from watchlists ·{' '}
@@ -404,7 +402,7 @@ export default function Results({ data, answers, onAnswers, busy }: { data: R; a
       <Toast text={toast} />
       <AnimatePresence>
         {pastHero && (
-          <motion.button className="btn fab" onClick={() => setTune(true)} initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 16 }}>
+          <motion.button className="btn fab" onClick={() => setTune(true)} initial={{ opacity: 0, y: 16, scale: 0.96 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 12, scale: 0.96 }} transition={{ duration: 0.22, ease }}>
             <Icon name="sliders" /> Adjust the vibe
           </motion.button>
         )}

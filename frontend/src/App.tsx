@@ -201,7 +201,7 @@ export default function App() {
       </header>
 
       <AnimatePresence mode="wait">
-        <motion.main key={stage} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.4 }}>
+        <motion.main key={stage} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.22 }}>
           {stage === 'who' && <Landing initial={people} onStart={start} />}
           {stage === 'quiz' && (
             <Quiz

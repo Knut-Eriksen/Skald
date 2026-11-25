@@ -14,7 +14,7 @@
   --serif: 'Instrument Serif', 'Times New Roman', serif;
   --sans: 'Geist', ui-sans-serif, system-ui, sans-serif;
   --mono: 'Geist Mono', ui-monospace, monospace;
-  --ease: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease: cubic-bezier(0.23, 1, 0.32, 1); /* strong ease-out */
   --radius: 14px;
   --gutter: clamp(16px, 4vw, 56px);
   color-scheme: dark;
@@ -34,7 +34,7 @@ body {
   overflow-x: hidden;
 }
 img { display: block; max-width: 100%; }
-button { font: inherit; color: inherit; cursor: pointer; }
+button { font: inherit; color: inherit; cursor: pointer; touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
 a { color: inherit; }
 ::selection { background: var(--accent); color: var(--accent-ink); }
 :focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-radius: 6px; }
@@ -95,7 +95,7 @@ a { color: inherit; }
   justify-content: space-between;
   gap: 16px;
   padding: 18px var(--gutter);
-  transition: background 0.4s var(--ease), backdrop-filter 0.4s;
+  transition: background-color 300ms ease, border-color 300ms ease;
 }
 .topbar.solid {
   background: linear-gradient(to bottom, rgba(11, 10, 9, 0.92), rgba(11, 10, 9, 0.7));
@@ -132,9 +132,11 @@ a { color: inherit; }
   letter-spacing: 0.005em;
   text-decoration: none;
   white-space: nowrap;
-  transition: transform 0.25s var(--ease), background 0.25s, border-color 0.25s, color 0.25s, box-shadow 0.3s;
+  transition: transform 160ms var(--ease), background-color 200ms ease, border-color 200ms ease, color 200ms ease, box-shadow 250ms ease;
 }
-.btn:hover { background: rgba(255, 240, 220, 0.09); border-color: rgba(255, 236, 214, 0.28); }
+@media (hover: hover) and (pointer: fine) {
+  .btn:hover { background: rgba(255, 240, 220, 0.09); border-color: rgba(255, 236, 214, 0.28); }
+}
 .btn:active { transform: scale(0.97); }
 .btn svg { width: 17px; height: 17px; flex: none; }
 .btn.primary {
@@ -143,10 +145,12 @@ a { color: inherit; }
   color: var(--accent-ink);
   box-shadow: 0 8px 30px -10px rgba(232, 163, 61, 0.6);
 }
-.btn.primary:hover { background: var(--accent-2); border-color: var(--accent-2); box-shadow: 0 10px 40px -8px rgba(232, 163, 61, 0.7); }
+@media (hover: hover) and (pointer: fine) {
+  .btn.primary:hover { background: var(--accent-2); border-color: var(--accent-2); box-shadow: 0 10px 40px -8px rgba(232, 163, 61, 0.7); }
+  .btn.ghost:hover { color: var(--text); background: rgba(255, 240, 220, 0.06); }
+}
 .btn.primary:disabled { opacity: 0.35; box-shadow: none; cursor: not-allowed; }
 .btn.ghost { background: transparent; border-color: transparent; color: var(--muted); }
-.btn.ghost:hover { color: var(--text); background: rgba(255, 240, 220, 0.06); }
 .btn.small { --h: 36px; padding: 0 14px; font-size: 13.5px; }
 .btn.icon { padding: 0; width: var(--h); }
 
@@ -265,7 +269,7 @@ a { color: inherit; }
   display: grid;
   place-items: center;
 }
-.chip button:hover { color: var(--text); background: rgba(255, 255, 255, 0.08); }
+@media (hover: hover) and (pointer: fine) { .chip button:hover { color: var(--text); background: rgba(255, 255, 255, 0.08); } }
 .chip.pending { color: var(--muted); padding-left: 14px; }
 .chip.error { border-color: rgba(226, 103, 79, 0.5); color: var(--danger); padding-left: 14px; }
 .who-foot {
@@ -325,7 +329,7 @@ a { color: inherit; }
   gap: 18px;
   overflow: hidden;
   isolation: isolate;
-  transition: border-color 0.3s, transform 0.35s var(--ease), background 0.3s;
+  transition: border-color 200ms ease, transform 200ms var(--ease), background-color 200ms ease;
 }
 .option::before {
   content: '';
@@ -339,10 +343,13 @@ a { color: inherit; }
   filter: blur(50px);
   opacity: 0.16;
   z-index: -1;
-  transition: opacity 0.4s, transform 0.6s var(--ease);
+  transition: opacity 300ms ease, transform 400ms var(--ease);
 }
-.option:hover { border-color: var(--line-2); transform: translateY(-2px); }
-.option:hover::before { opacity: 0.32; transform: scale(1.15); }
+@media (hover: hover) and (pointer: fine) {
+  .option:hover { border-color: var(--line-2); transform: translateY(-2px); }
+  .option:hover::before { opacity: 0.32; transform: scale(1.15); }
+}
+.option:active { transform: scale(0.98); transition-duration: 100ms; }
 .option[aria-pressed='true'] { border-color: var(--accent); background: rgba(232, 163, 61, 0.07); }
 .option[aria-pressed='true']::before { opacity: 0.45; }
 .option .num { font-family: var(--mono); font-size: 11px; color: var(--faint); display: flex; justify-content: space-between; align-items: center; }
@@ -353,8 +360,9 @@ a { color: inherit; }
   border: 1px solid var(--line-2);
   display: grid;
   place-items: center;
-  transition: all 0.25s var(--ease);
+  transition: background-color 180ms ease, border-color 180ms ease, transform 180ms var(--ease);
 }
+.option[aria-pressed='true'] .check { transform: scale(1.06); }
 .option[aria-pressed='true'] .check { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
 .option .label { font-family: var(--serif); font-size: 27px; line-height: 1.05; letter-spacing: -0.01em; }
 .option .sub { color: var(--muted); font-size: 13px; margin-top: 4px; }
@@ -495,9 +503,9 @@ a { color: inherit; }
   border: 1px solid var(--line);
   font-size: 13px;
   text-decoration: none;
-  transition: background 0.2s, border-color 0.2s;
+  transition: background-color 150ms ease, border-color 150ms ease;
 }
-.service:hover { background: rgba(255, 240, 220, 0.1); border-color: var(--line-2); }
+@media (hover: hover) and (pointer: fine) { .service:hover { background: rgba(255, 240, 220, 0.1); border-color: var(--line-2); } }
 .service img { width: 24px; height: 24px; border-radius: 6px; }
 .service .kind { font-family: var(--mono); font-size: 10.5px; color: var(--accent); text-transform: uppercase; letter-spacing: 0.08em; }
 .services .eyebrow { margin-right: 6px; }
@@ -515,14 +523,19 @@ a { color: inherit; }
   background: transparent;
   color: var(--muted);
   font-size: 13px;
-  transition: all 0.2s;
+  transition: color 150ms ease, background-color 150ms ease, border-color 150ms ease, transform 120ms var(--ease);
 }
-.seg:hover { color: var(--text); border-color: var(--line-2); }
+@media (hover: hover) and (pointer: fine) { .seg:hover { color: var(--text); border-color: var(--line-2); } }
+.seg:active, .pill:active { transform: scale(0.96); }
 .seg[aria-pressed='true'] { background: var(--text); color: var(--bg); border-color: var(--text); }
 .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(176px, 1fr)); gap: 28px 18px; }
 .card { text-align: left; background: none; border: 0; padding: 0; display: flex; flex-direction: column; gap: 12px; }
-.card .poster { position: relative; transition: transform 0.45s var(--ease), box-shadow 0.45s var(--ease); box-shadow: 0 20px 40px -24px rgba(0, 0, 0, 0.9), 0 0 0 1px rgba(255, 255, 255, 0.05); }
-.card:hover .poster { transform: translateY(-6px); box-shadow: 0 30px 60px -24px rgba(0, 0, 0, 1), 0 0 0 1px rgba(232, 163, 61, 0.5); }
+.card .poster { position: relative; transition: transform 250ms var(--ease), box-shadow 250ms var(--ease); box-shadow: 0 20px 40px -24px rgba(0, 0, 0, 0.9), 0 0 0 1px rgba(255, 255, 255, 0.05); }
+@media (hover: hover) and (pointer: fine) {
+  .card:hover .poster { transform: translateY(-6px); box-shadow: 0 30px 60px -24px rgba(0, 0, 0, 1), 0 0 0 1px rgba(232, 163, 61, 0.5); }
+  .card:hover .overlay { opacity: 1; }
+}
+.card:active .poster { transform: scale(0.98); transition-duration: 100ms; }
 .card .overlay {
   position: absolute;
   inset: 0;
@@ -533,12 +546,12 @@ a { color: inherit; }
   gap: 6px;
   background: linear-gradient(to top, rgba(0, 0, 0, 0.92), rgba(0, 0, 0, 0.2) 60%, transparent);
   opacity: 0;
-  transition: opacity 0.3s;
+  transition: opacity 200ms ease;
   font-size: 12.5px;
   line-height: 1.4;
   color: var(--text);
 }
-.card:hover .overlay, .card:focus-visible .overlay { opacity: 1; }
+.card:focus-visible .overlay { opacity: 1; }
 .card .badge {
   position: absolute;
   top: 10px;
@@ -601,9 +614,9 @@ a { color: inherit; }
   background: transparent;
   font-size: 13px;
   color: var(--muted);
-  transition: all 0.2s;
+  transition: color 150ms ease, background-color 150ms ease, border-color 150ms ease, transform 120ms var(--ease);
 }
-.pill:hover { color: var(--text); }
+@media (hover: hover) and (pointer: fine) { .pill:hover { color: var(--text); } }
 .pill[aria-pressed='true'] { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
 .drawer footer { padding: 16px 24px; border-top: 1px solid var(--line); display: flex; gap: 10px; align-items: center; justify-content: space-between; color: var(--faint); font-size: 12.5px; }
 

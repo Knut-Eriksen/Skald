@@ -67,7 +67,7 @@ export function steps(solo: boolean): Step[] {
   ]
 }
 
-const ease = [0.22, 1, 0.36, 1] as const
+const ease = [0.23, 1, 0.32, 1] as const
 
 export default function Quiz({
   people, answers, setAnswers, job, onDone, onBack,
@@ -137,10 +137,10 @@ export default function Quiz({
           <motion.div
             key={step.key}
             custom={dir}
-            initial={{ opacity: 0, x: dir * 40 }}
+            initial={{ opacity: 0, x: dir * 24 }}
             animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: dir * -40 }}
-            transition={{ duration: 0.45, ease }}
+            exit={{ opacity: 0, x: dir * -24, transition: { duration: 0.15 } }}
+            transition={{ duration: 0.28, ease }}
           >
             <div className="quiz-head">
               <span className="eyebrow accent">
@@ -159,7 +159,7 @@ export default function Quiz({
                   onClick={() => choose(o)}
                   initial={{ opacity: 0, y: 16 }}
                   animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.5, delay: 0.04 * n, ease }}
+                  transition={{ duration: 0.3, delay: Math.min(n, 6) * 0.03, ease }}
                 >
                   <span className="num">
                     {String(n + 1).padStart(2, '0')}
