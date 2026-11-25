@@ -248,6 +248,33 @@ export default function Results({ data, answers, onAnswers, busy }: { data: R; a
   const [trailer, setTrailer] = useState<string | null>(null)
   const [tune, setTune] = useState(false)
   const [filter, setFilter] = useState<Filter>('all')
+  const [streamOnly, setStreamOnly] = useState(false)
+  const [streamable, setStreamable] = useState<Record<string, boolean>>({})
+  const [checking, setChecking] = useState(false)
+
+  // "Streaming now": look up availability for every pick (cached server-side for a day)
+  useEffect(() => {
+    if (!streamOnly) return
+    const todo = data.picks.map((p) => p.film.slug).filter((s) => !(s in streamable))
+    if (!todo.length) return
+    let live = true
+    setChecking(true)
+    Promise.all(
+      todo.map((s) =>
+        api.availability(s).then(
+          (a) => [s, !!a.unknown || a.services.some((x) => x.kinds.includes('stream') || x.kinds.includes('free'))] as const, // couldn't check: keep it
+          () => [s, false] as const,
+        ),
+      ),
+    ).then((rows) => {
+      if (!live) return
+      setStreamable((m) => ({ ...m, ...Object.fromEntries(rows) }))
+      setChecking(false)
+    })
+    return () => {
+      live = false
+    }
+  }, [streamOnly, data]) // eslint-disable-line react-hooks/exhaustive-deps
   const [toast, setToast] = useState<string | null>(null)
   const [pastHero, setPastHero] = useState(false)
   useEffect(() => {
@@ -269,7 +296,9 @@ export default function Results({ data, answers, onAnswers, busy }: { data: R; a
     return () => clearTimeout(t)
   }, [toast])
 
-  const available = data.picks.filter((p) => !skipped.includes(p.film.slug))
+  const available = data.picks.filter(
+    (p) => !skipped.includes(p.film.slug) && (!streamOnly || checking || streamable[p.film.slug]),
+  )
   const hero = (chosen && data.picks.find((p) => p.film.slug === chosen)) || available[0]
   const rest = useMemo(
     () => available.filter((p) => p !== hero && (filter === 'all' || p.source === filter)),
@@ -299,11 +328,22 @@ export default function Results({ data, answers, onAnswers, busy }: { data: R; a
     return (
       <section className="more" style={{ paddingTop: 160 }}>
         <div className="empty">
-          <h3 className="display">Nothing fits that exact vibe.</h3>
-          <p>Loosen a filter (runtime, era or subtitles usually does it) and the picks come straight back.</p>
-          <button className="btn primary" style={{ marginTop: 20 }} onClick={() => setTune(true)}>
-            <Icon name="sliders" /> Adjust the vibe
-          </button>
+          <h3 className="display">{streamOnly ? 'None of these are streaming here.' : 'Nothing fits that exact vibe.'}</h3>
+          <p>
+            {streamOnly
+              ? 'They’re all rent-or-buy where you are. Show everything, or loosen the vibe for more options.'
+              : 'Loosen a filter (runtime, era or subtitles usually does it) and the picks come straight back.'}
+          </p>
+          <div style={{ display: 'flex', gap: 10, justifyContent: 'center', marginTop: 20 }}>
+            {streamOnly && (
+              <button className="btn" onClick={() => setStreamOnly(false)}>
+                Show everything
+              </button>
+            )}
+            <button className="btn primary" onClick={() => setTune(true)}>
+              <Icon name="sliders" /> Adjust the vibe
+            </button>
+          </div>
         </div>
         <Tune open={tune} onClose={() => setTune(false)} answers={answers} onChange={onAnswers} solo={solo} />
       </section>
@@ -328,6 +368,9 @@ export default function Results({ data, answers, onAnswers, busy }: { data: R; a
                 {{ all: 'Everything', watchlist: solo ? 'My watchlist' : 'Watchlists', discovery: 'New finds' }[f]}
               </button>
             ))}
+            <button className="seg" aria-pressed={streamOnly} onClick={() => setStreamOnly((v) => !v)}>
+              {checking ? 'Checking services…' : 'Streaming now'}
+            </button>
             <button className="seg" onClick={() => setTune(true)}>
               Adjust the vibe
             </button>

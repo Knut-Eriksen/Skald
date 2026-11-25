@@ -43,6 +43,8 @@ def start(usernames: list[str]) -> Job:
     for j in jobs.values():  # reuse a running/finished job for the same group
         if ",".join(sorted(j.usernames)) == key and not j.error and time.time() - j.created < 3600:
             return j
+    for old in [k for k, v in jobs.items() if time.time() - v.created > 3 * 3600]:
+        jobs.pop(old)
     j = Job(id=uuid.uuid4().hex[:12], usernames=[u.lower() for u in usernames])
     jobs[j.id] = j
     j.task = asyncio.create_task(_run(j))
@@ -133,6 +135,14 @@ def prefetch_vibe(j: Job, moods: list[str], era: str) -> list[asyncio.Task]:
 
 
 async def _vibe(j: Job, mood: str, era: str) -> tuple[str, list[str]]:
+    try:
+        return await _vibe_inner(mood, era)
+    except Exception:  # charts are a bonus; never break recommendations over them
+        j.vibe_tasks.pop((mood, era), None)  # let a later call retry
+        return mood, []
+
+
+async def _vibe_inner(mood: str, era: str) -> tuple[str, list[str]]:
     paths = []
     for g in rec.MOOD_BROWSE[mood]:
         if era == "any":

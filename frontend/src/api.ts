@@ -95,7 +95,7 @@ export const api = {
       body: JSON.stringify({ moods, era }),
     }).catch(() => {}),
   availability: (slug: string) =>
-    fetch(`/api/film/${slug}/availability`).then(json<{ services: Service[]; country: string | null }>),
+    fetch(`/api/film/${slug}/availability`).then(json<{ services: Service[]; country: string | null; unknown?: boolean }>),
   watch(job: string, onState: (s: JobState) => void) {
     const es = new EventSource(`/api/jobs/${job}/events`)
     es.onmessage = (e) => {

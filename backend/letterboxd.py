@@ -5,6 +5,7 @@ gets through Cloudflare where `requests` gets a "Just a moment..." page.
 """
 import asyncio
 import html
+import logging
 import json
 import re
 from dataclasses import dataclass, field, asdict
@@ -14,6 +15,7 @@ from selectolax.lexbor import LexborHTMLParser as HTMLParser
 
 from . import cache
 
+log = logging.getLogger("marquee")
 BASE = "https://letterboxd.com"
 CONCURRENCY = 8  # ponytail: global limiter; per-host politeness tuning if Letterboxd starts throttling
 MAX_LIST_PAGES = 80  # ~5.7k films; anyone bigger gets truncated
@@ -41,16 +43,17 @@ def _s() -> AsyncSession:
     return _session
 
 
-async def fetch(path: str) -> str:
+async def fetch(path: str, tries: int = 5) -> str:
     """GET a Letterboxd path with retries. Raises NotFound on 404."""
     url = path if path.startswith("http") else BASE + path
-    delay = 1.0
-    for attempt in range(5):
+    delay = 1.0 if tries > 2 else 0.4
+    for attempt in range(tries):
         async with _sem:
             try:
                 r = await _s().get(url, allow_redirects=True)
-            except Exception:
-                if attempt == 4:
+            except Exception as e:
+                log.info("fetch %s failed: %r", url, e)
+                if attempt == tries - 1:
                     raise
                 await asyncio.sleep(delay)
                 delay *= 2
@@ -60,6 +63,7 @@ async def fetch(path: str) -> str:
         if r.status_code == 200 and "<title>Just a moment" not in r.text[:3000]:
             return r.text
         # 403 challenge / 429 / 5xx: back off and retry
+        log.info("fetch %s -> %s", url, r.status_code)
         await asyncio.sleep(delay)
         delay *= 2
     raise Blocked(f"Letterboxd refused {url} (status {r.status_code})")
@@ -378,9 +382,10 @@ async def availability(slug: str) -> dict:
     if (hit := cache.get(key, AVAIL_TTL)) is not None:
         return hit
     try:
-        doc = HTMLParser(await fetch(f"/csi/film/{slug}/availability/?esiAllowUser=true&esiAllowCountry=true"))
-    except (NotFound, Blocked):
-        return {"services": [], "country": None}
+        # nice-to-have: fail fast rather than make the UI wait out Cloudflare backoff
+        doc = HTMLParser(await fetch(f"/csi/film/{slug}/availability/?esiAllowUser=true&esiAllowCountry=true", tries=3))
+    except (NotFound, Blocked, Exception):
+        return {"services": [], "country": None, "unknown": True}
     services, country = [], None
     for p in doc.css("section.services p.service"):
         label = p.css_first("a.label")
