@@ -4,7 +4,8 @@ import time
 import uuid
 from dataclasses import dataclass, field
 
-VIBE_POOL = 110  # films per (mood, era) pulled from Letterboxd's genre charts
+VIBE_POOL = 300  # films per (mood, era) pulled from Letterboxd's genre charts
+CHART_PAGES = 4  # 72 films a page; ponytail: first run of a mood takes ~30s more, cached for 30 days after
 
 from . import letterboxd as lb, recommend as rec, tmdb
 
@@ -146,9 +147,10 @@ async def _vibe_inner(mood: str, era: str) -> tuple[str, list[str]]:
     paths = []
     for g in rec.MOOD_BROWSE[mood]:
         if era == "any":
-            paths += [f"popular/genre/{g}/", f"popular/genre/{g}/page/2/"]
+            paths += [f"popular/genre/{g}/"] + [f"popular/genre/{g}/page/{n}/" for n in range(2, CHART_PAGES + 1)]
         else:
-            paths += [f"popular/genre/{g}/decade/{d}/" for d in rec.ERA_DECADES[era]]
+            paths += [f"popular/genre/{g}/decade/{d}/" + (f"page/{n}/" if n > 1 else "")
+                      for d in rec.ERA_DECADES[era] for n in (1, 2)]
     lists = await asyncio.gather(*(lb.browse(p) for p in paths))
     slugs, seen = [], set()
     for row in zip(*lists):  # interleave so every list gets represented

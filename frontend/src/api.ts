@@ -86,7 +86,7 @@ export const api = {
     fetch(`/api/jobs/${job}/recommend`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ answers, limit: 36 }),
+      body: JSON.stringify({ answers, limit: 120 }),
     }).then(json<Results>),
   vibe: (job: string, moods: string[], era: string) =>
     fetch(`/api/jobs/${job}/vibe`, {

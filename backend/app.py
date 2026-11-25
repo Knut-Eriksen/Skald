@@ -85,7 +85,7 @@ async def prefetch_vibe(job_id: str, body: VibeBody):
 
 class RecommendBody(BaseModel):
     answers: dict = {}
-    limit: int = Field(30, ge=1, le=60)
+    limit: int = Field(30, ge=1, le=200)
 
 
 @app.post("/api/jobs/{job_id}/recommend")

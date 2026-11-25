@@ -99,7 +99,7 @@ AVOID = {
     "emotional": {"Horror": 0.6, "Action": 0.4},
     "mindbend": {"Family": 0.8, "Documentary": 0.8, "Romance": 0.4, "Comedy": 0.3},
     "dark": {"Family": 1.0, "Comedy": 0.5, "Romance": 0.5, "Animation": 0.4},
-    "epic": {"Documentary": 1.0, "Comedy": 0.6, "Horror": 0.5, "Romance": 0.3, "Family": 0.3, "Animation": 0.3},
+    "epic": {"Documentary": 1.0, "Comedy": 0.6, "Horror": 0.5, "Crime": 0.4, "Romance": 0.3, "Family": 0.3, "Animation": 0.3},
     "romantic": {"Horror": 1.0, "War": 0.6, "Action": 0.3},
     "artful": {"Action": 0.6, "Family": 0.5, "Comedy": 0.3},
     "true": {"Fantasy": 1.0, "Science Fiction": 1.0, "Animation": 0.6, "Horror": 0.6},
@@ -226,7 +226,7 @@ def watchlist_candidates(users: list[UserData], cap: int = 400) -> tuple[dict[st
     return dict(who), order[:cap]
 
 
-def discovery_candidates(similar: dict[tuple[str, str], list[str]], watched: set[str], cap: int = 160):
+def discovery_candidates(similar: dict[tuple[str, str], list[str]], watched: set[str], cap: int = 300):
     """similar[(username, seed)] -> slugs. Rank by how many seeds (and people) point at a film."""
     hits = defaultdict(list)
     for (user, seed), slugs in similar.items():
