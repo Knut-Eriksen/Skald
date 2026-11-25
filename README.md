@@ -5,8 +5,8 @@
 ## Run it
 
 ```bash
-git clone https://github.com/Knut-Eriksen/Letterboxd-Watchlist-Scraper.git
-cd Letterboxd-Watchlist-Scraper
+git clone https://github.com/Knut-Eriksen/Skald.git
+cd Skald
 python3 run.py
 ```
 
