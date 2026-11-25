@@ -305,12 +305,15 @@ def parse_film(slug: str, page: str) -> Film:
 async def film(slug: str) -> Film | None:
     key = f"film:{slug}"
     if hit := cache.get(key, FILM_TTL):
-        return Film(**hit)
-    try:
-        f = parse_film(slug, await fetch(f"/film/{slug}/"))
-    except (NotFound, Blocked):
-        return None
-    cache.set(key, asdict(f))
+        f = Film(**hit)
+    else:
+        try:
+            f = parse_film(slug, await fetch(f"/film/{slug}/"))
+        except (NotFound, Blocked):
+            return None
+        cache.set(key, asdict(f))
+    if f.backdrop:  # Letterboxd's CDN resizes on request; 1200px looks soft full-bleed
+        f.backdrop = f.backdrop.replace("-1200-1200-675-675-crop", "-1920-1920-1080-1080-crop")
     return f
 
 

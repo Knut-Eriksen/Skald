@@ -373,7 +373,7 @@ def recommend(pool: Pool, answers: dict | None = None, limit: int = 30) -> list[
         d = [x for x in picked if x[1] not in pool.watchlisted]
         merged = []
         while w or d:
-            strong_d = d and d[0][0] >= 0.8 * picked[0][0]
+            strong_d = d and d[0][0] >= 0.65 * picked[0][0]
             need_d = d and (not w or (strong_d and len(merged) % 3 == 2
                                       and all(m[1] in pool.watchlisted for m in merged[-2:])))
             take = d if need_d or (d and w and d[0][0] > w[0][0]) else (w or d)
@@ -415,7 +415,7 @@ def _calibrated(raw: dict[str, float], pool: Pool, u: str, prof, idf) -> dict[st
     """Map raw taste to a 50-99 'match %': 99 ~= as close as the user's own favourites."""
     favs = sorted(taste(features(pool.films[sd.slug]), prof, idf)
                   for sd in pool.seeds.get(u, []) if sd.weight > 0 and sd.slug in pool.films)
-    ref = favs[int(len(favs) * 0.6)] if favs else max(raw.values(), default=1)
+    ref = favs[int(len(favs) * 0.85)] if favs else max(raw.values(), default=1)
     ref = ref if ref > 0 else 1
     return {s: round(50 + 49 * _clamp(v / ref) ** 1.3) for s, v in raw.items()}
 
