@@ -139,5 +139,6 @@ if DIST.exists():
 
     @app.get("/{path:path}")
     def spa(path: str):
-        f = DIST / path
-        return FileResponse(f if path and f.is_file() else DIST / "index.html")
+        f = (DIST / path).resolve()
+        ok = path and f.is_relative_to(DIST.resolve()) and f.is_file()  # block ../ traversal
+        return FileResponse(f if ok else DIST / "index.html")
