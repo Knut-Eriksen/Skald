@@ -1,0 +1,60 @@
+"""Run: .venv/bin/python -m pytest backend  (or: python -m backend.test_recommend)"""
+from .letterboxd import Film, ListFilm, Profile, UserData
+from .recommend import Pool, mood_score, pick_seeds, recommend, watchlist_candidates
+
+
+def film(slug, genres, themes=(), runtime=100, lang="English", director="D", rating=3.8, count=50_000, year=2010):
+    return Film(slug=slug, title=slug.title(), year=year, tmdb_id=1, genres=list(genres), themes=list(themes),
+                runtime=runtime, language=lang, directors=[director], rating=rating, rating_count=count)
+
+
+def user(name, watched, liked=(), watchlist=()):
+    return UserData(Profile(name, name.title(), None, len(watched)), [ListFilm(s, s, r) for s, r in watched],
+                    list(liked), list(watchlist))
+
+
+def make_pool():
+    films = {f.slug: f for f in [
+        film("heat", ["Crime", "Thriller"], ["Heists and thrilling action"], director="Mann"),
+        film("collateral", ["Crime", "Thriller"], ["Heists and thrilling action"], director="Mann"),
+        film("thief", ["Crime", "Thriller"], ["Heists and thrilling action"], director="Mann"),
+        film("paddington", ["Family", "Comedy"], ["Heartwarming and charming family"], director="King"),
+        film("amelie", ["Comedy", "Romance"], ["Whimsical, quirky romance"], lang="French", director="Jeunet"),
+        film("long-epic", ["Thriller"], ["Heists and thrilling action"], runtime=200, director="X"),
+        film("violent", ["Drama"], ["Intense violence and transgression"], director="Y"),
+    ]}
+    a = user("ana", [("heat", 10), ("paddington", 3)], liked=["heat"], watchlist=["collateral", "amelie", "long-epic"])
+    b = user("bo", [("collateral", None)], watchlist=["thief", "violent", "paddington"])
+    users = [a, b]
+    watchlisted, _ = watchlist_candidates(users)
+    return Pool(users=users, films=films, seeds={u.profile.username: pick_seeds(u) for u in users},
+                watchlisted=watchlisted, watched_any={f.slug for u in users for f in u.watched})
+
+
+def test_recommend():
+    pool = make_pool()
+    slugs = [p["film"]["slug"] for p in recommend(pool, {"moods": ["tense"]})]
+    assert "heat" not in slugs and "collateral" not in slugs, "anything someone watched is out"
+    assert slugs[0] == "thief", slugs  # matches Ana's loved Heat (same director) and the tense vibe
+
+    short = [p["film"]["slug"] for p in recommend(pool, {"runtime": 120})]
+    assert "long-epic" not in short
+
+    english = [p["film"]["slug"] for p in recommend(pool, {"subtitles": False})]
+    assert "amelie" not in english
+
+    wl = recommend(pool, {"source": "watchlist"})
+    thief = next(p for p in wl if p["film"]["slug"] == "thief")
+    assert thief["reasons"][0]["text"] == "On Bo's watchlist"
+    assert any("Mann" in r["text"] for r in thief["reasons"]), thief["reasons"]
+
+
+def test_mood_word_boundaries():
+    assert mood_score(film("v", ["Drama"], ["Intense violence"]), "tense")[0] == 0  # "tense" ≠ "intense"
+    assert mood_score(film("p", ["Family"], ["Heartwarming and charming family"]), "cozy")[0] > 0.6
+
+
+if __name__ == "__main__":
+    test_recommend()
+    test_mood_word_boundaries()
+    print("ok")

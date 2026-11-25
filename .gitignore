@@ -1,1 +1,8 @@
 .idea/
+.venv/
+__pycache__/
+cache.sqlite3*
+node_modules/
+frontend/dist/
+.env
+.DS_Store
