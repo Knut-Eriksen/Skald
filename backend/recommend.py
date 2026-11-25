@@ -390,6 +390,8 @@ def recommend(pool: Pool, answers: dict | None = None, limit: int = 30) -> list[
         wl = len(pool.watchlisted.get(s, ())) / n_users
         # what you'd pick with no mood in mind: your taste, how good it is, whether you saved it
         score = 0.55 * group_taste + 0.3 * quality(f) + 0.15 * wl
+        if a["fame"] == "any":  # tilt a little toward films people have actually heard of
+            score *= 0.85 + 0.15 * fame[s]
         if fits:  # a mood is a request, not a nudge: the film has to *be* it. Two moods = a blend of both.
             vibe = 0.6 * max(fits) + 0.4 * min(fits)
             score *= 0.15 + 0.85 * vibe ** 1.3
