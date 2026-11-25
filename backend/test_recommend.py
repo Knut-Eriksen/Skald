@@ -71,6 +71,27 @@ def test_moods_feel_human():
     assert gem.index("small") < gem.index("big") and popular.index("big") < popular.index("small")
 
 
+def test_mood_traps_from_real_data():
+    isle = film("isle", ["Comedy", "Animation", "Adventure"], ["Quirky and endearing relationships"])
+    assert mood_score(isle, "romantic")[0] <= 0.3  # friendship "relationships" isn't romance
+    life_is_beautiful = film("lib", ["Comedy", "Drama"], ["Heartfelt and sentimental family stories",
+                                                          "Heartbreaking and moving family drama"])
+    assert mood_score(life_is_beautiful, "cozy")[0] < 0.4
+    pianist = film("pianist", ["War", "Drama"], ["War and historical adventure", "Nazis and World War II"], runtime=150)
+    assert mood_score(pianist, "epic")[0] < 0.4
+    procedural = film("mystic", ["Mystery", "Drama", "Thriller", "Crime"], ["Twisted dark psychological thriller"])
+    mulholland = film("mulholland", ["Drama", "Mystery", "Thriller"],
+                      ["Dreamlike, quirky, and surreal storytelling", "Twisted dark psychological thriller"])
+    assert mood_score(mulholland, "mindbend")[0] > mood_score(procedural, "mindbend")[0] + 0.3
+
+    films = {"good": film("good", ["Drama"], ["Dreamlike, quirky, and surreal storytelling"], rating=3.9),
+             "dud": film("dud", ["Drama"], ["Dreamlike, quirky, and surreal storytelling",
+                                            "Surreal and thought-provoking visions"], rating=2.3)}
+    u = user("ana", [], watchlist=list(films))
+    pool = Pool(users=[u], films=films, seeds={"ana": []}, watchlisted=watchlist_candidates([u])[0])
+    assert recommend(pool, {"moods": ["mindbend"]})[0]["film"]["slug"] == "good"  # 2.3 stars sinks
+
+
 def test_new_blockbuster_is_not_a_gem():
     from .recommend import popularity
     new_hit = film("heart-of-the-beast", ["Adventure"], count=246_000, year=2026)
@@ -96,6 +117,7 @@ def test_mood_word_boundaries():
 if __name__ == "__main__":
     test_recommend()
     test_moods_feel_human()
+    test_mood_traps_from_real_data()
     test_new_blockbuster_is_not_a_gem()
     test_mix_keeps_new_finds()
     test_mood_word_boundaries()

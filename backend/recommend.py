@@ -17,10 +17,11 @@ from .letterboxd import Film, UserData
 MOODS = {
     "cozy": {
         "label": "Cozy",
-        "genres": {"Comedy": 0.6, "Family": 0.9, "Animation": 0.8, "Romance": 0.5},
+        "genres": {"Comedy": 0.6, "Family": 0.9, "Animation": 0.8, "Romance": 0.25},
         "kw": ["heartwarming", "feel-good", "charming", "wholesome", "cozy", "sweet", "touching", "friendship",
                "whimsical", "delightful", "uplifting", "endearing", "gentle", "comforting", "heartfelt"],
-        "anti": ["horror", "gore", "violent", "disturbing", "brutal", "terrifying", "grisly"],
+        "anti": ["horror", "gore", "violent", "disturbing", "brutal", "terrifying", "grisly", "heartbreak", "war", "nazi",
+                 "holocaust", "suffering"],
     },
     "tense": {
         "label": "Thrilling",
@@ -34,21 +35,23 @@ MOODS = {
         "genres": {"Comedy": 1.0},
         "kw": ["funny", "hilarious", "comedy", "comedic", "witty", "quirky", "absurd", "satire", "humor",
                "humour", "laugh", "slapstick", "outrageous", "zany", "raunchy", "parody", "deadpan"],
-        "anti": ["tragic", "heartbreaking", "grief", "suffering", "bleak"],
+        "anti": ["tragic", "heartbreak", "grief", "suffering", "bleak", "nazi", "holocaust"],
     },
     "emotional": {
         "label": "Emotional",
         "genres": {"Drama": 0.8, "Romance": 0.5},
         "kw": ["moving", "heartbreak", "tragic", "emotional", "tear", "grief", "loss", "sad", "poignant",
-               "touching", "sentimental", "melancholy", "devastating", "suffering", "mourning", "powerful"],
+               "touching", "sentimental", "melancholy", "devastating", "suffering", "mourning"],
         "anti": ["slapstick", "zany", "raunchy"],
     },
     "mindbend": {
         "label": "Mind-bending",
-        "genres": {"Science Fiction": 0.8, "Mystery": 0.7, "Thriller": 0.4},
-        "kw": ["mind-bending", "twist", "surreal", "dream", "reality", "time travel", "puzzle", "philosophical",
-               "existential", "mysterious", "cerebral", "psychological", "enigmatic", "paranoia", "identity",
-               "memory", "simulation", "dystopia", "thought-provoking"],
+        "genres": {"Science Fiction": 0.6, "Mystery": 0.5, "Thriller": 0.3},
+        # Letterboxd tags real head-trips "surreal", "dreamlike", "thought-provoking"; its "twisted dark
+        # psychological thriller" sits on every crime procedural, so "twist" counts but "psychological" doesn't
+        "kw": ["mind-bending", "twist", "surreal", "dream", "thought-provoking", "reality", "time travel", "puzzle",
+               "philosophical", "existential", "cerebral", "enigmatic", "paranoia", "identity", "memory",
+               "simulation", "nonlinear", "unreliable"],
         "anti": ["slapstick", "wholesome"],
     },
     "dark": {
@@ -65,13 +68,12 @@ MOODS = {
                    "History": 0.4},
         "kw": ["epic", "adventure", "quest", "journey", "spectacular", "battle", "kingdom", "galaxy", "legend",
                "heroic", "sweeping", "grand", "space", "mythical", "monster", "superhero", "empire"],
-        "anti": [],
+        "anti": ["nazi", "holocaust", "heartbreak"],
     },
     "romantic": {
         "label": "Romantic",
         "genres": {"Romance": 1.0},
-        "kw": ["romance", "romantic", "love", "passion", "relationship", "lovers", "falling in love", "desire",
-               "captivating relationships", "courtship"],
+        "kw": ["romance", "romantic", "love", "passion", "lovers", "falling in love", "desire", "courtship"],
         "anti": ["gore", "slasher", "terrifying"],
     },
     "artful": {
@@ -97,14 +99,17 @@ AVOID = {
     "cozy": {"Horror": 1.0, "War": 0.8, "Thriller": 0.6, "Crime": 0.5},
     "tense": {"Family": 1.0, "Documentary": 0.8, "Animation": 0.6, "Romance": 0.3},
     "funny": {"War": 0.8, "Horror": 0.6, "Documentary": 0.5, "Thriller": 0.4},
-    "emotional": {"Horror": 0.6, "Action": 0.4},
-    "mindbend": {"Family": 0.8, "Documentary": 0.8, "Romance": 0.4, "Comedy": 0.3},
+    "emotional": {"Horror": 0.6, "Action": 0.4, "Crime": 0.4},
+    "mindbend": {"Family": 0.8, "Documentary": 0.8, "Crime": 0.5, "Romance": 0.4, "Comedy": 0.3, "Horror": 0.3},
     "dark": {"Family": 1.0, "Comedy": 0.5, "Romance": 0.5, "Animation": 0.4},
     "epic": {"Documentary": 1.0, "Comedy": 0.6, "Horror": 0.5, "Crime": 0.4, "Romance": 0.3, "Family": 0.3, "Animation": 0.3},
     "romantic": {"Horror": 1.0, "War": 0.6, "Action": 0.3},
     "artful": {"Action": 0.6, "Family": 0.5, "Comedy": 0.3},
     "true": {"Fantasy": 1.0, "Science Fiction": 1.0, "Animation": 0.6, "Horror": 0.6},
 }
+# Moods a film can't really be without one of these genres (a romance needs Romance, a comedy needs Comedy)
+CORE = {"funny": {"Comedy"}, "romantic": {"Romance"}, "dark": {"Horror", "Thriller"},
+        "true": {"Documentary", "History"}, "tense": {"Thriller", "Crime", "Mystery", "Action"}}
 # +1: the mood wants a long, sweeping film; -1: it wants a light, short one
 LENGTH = {"epic": 1, "cozy": -1, "funny": -1}
 
@@ -280,6 +285,8 @@ def mood_score(f: Film, mood: str) -> tuple[float, str | None]:
     hits = [(_count(m["kw"], t.lower()) - _count(m["anti"], t.lower()), -i, t) for i, t in enumerate(f.themes)]
     best = max(hits, default=(0, 0, None))
     score = 0.45 * genre + 0.45 * kw + 0.2 * (shape - 0.5) - 0.45 * avoid - anti
+    if mood in CORE and not CORE[mood] & set(f.genres):
+        score = min(score, 0.15)
     return _clamp(score), best[2] if best[0] > 0 else None
 
 
@@ -390,11 +397,13 @@ def recommend(pool: Pool, answers: dict | None = None, limit: int = 30) -> list[
         wl = len(pool.watchlisted.get(s, ())) / n_users
         # what you'd pick with no mood in mind: your taste, how good it is, whether you saved it
         score = 0.55 * group_taste + 0.3 * quality(f) + 0.15 * wl
+        if f.rating:  # nobody wants a 2.3-star film recommended to them, however on-theme it is
+            score *= _clamp((f.rating - 2.4) / 0.8, 0.3, 1.0)  # 3.2+ untouched, 2.8 halved
         if a["fame"] == "any":  # tilt a little toward films people have actually heard of
             score *= 0.85 + 0.15 * fame[s]
         if fits:  # a mood is a request, not a nudge: the film has to *be* it. Two moods = a blend of both.
-            vibe = 0.6 * max(fits) + 0.4 * min(fits)
-            score *= 0.15 + 0.85 * vibe ** 1.3
+            vibe = math.prod(fits) ** (1 / len(fits))
+            score *= 0.05 + 0.95 * vibe ** 2  # steep: a 0.2 fit is ~10x behind a 0.7 fit, whatever your taste
         if a["fame"] != "any":
             score *= 0.3 + 0.7 * fame_fit(fame[s], a["fame"])
         if a["era"] in ERAS and f.year:
