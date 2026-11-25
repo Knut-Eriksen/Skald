@@ -54,7 +54,7 @@ if __name__ == "__main__":
     import uvicorn
 
     url = f"http://localhost:{PORT}"
-    print(f"\n  Marquee is running at {url}\n")
+    print(f"\n  Skald is running at {url}\n")
     if "--no-browser" not in sys.argv:
         threading.Timer(1.2, lambda: webbrowser.open(url)).start()
     uvicorn.run("backend.app:app", host="127.0.0.1", port=PORT, log_level="warning")

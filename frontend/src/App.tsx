@@ -88,6 +88,7 @@ function Developing({ job, onRetry }: { job: JobState | null; onRetry: () => voi
 
 export default function App() {
   const [stage, setStage] = useState<Stage>('who')
+  // storage keys keep the old 'marquee.' prefix so a renamed app still remembers your group
   const [people, setPeople] = useState<Profile[]>(() => store.get('marquee.people', []))
   const [answers, setAnswersState] = useState<Answers>(() => ({ ...DEFAULTS, ...store.get('marquee.answers', {}) }))
   const [job, setJob] = useState<JobState | null>(null)
@@ -177,8 +178,8 @@ export default function App() {
       <div className="grain" aria-hidden="true" />
       <div className="vignette" aria-hidden="true" />
       <header className={`topbar ${scrolled || stage === 'quiz' ? 'solid' : ''}`}>
-        <button className="wordmark" onClick={reset} aria-label="Marquee, start over">
-          <Logo /> Marquee
+        <button className="wordmark" onClick={reset} aria-label="Skald, start over">
+          <Logo /> Skald
         </button>
         {stage !== 'who' && (
           <div className="topbar-right">

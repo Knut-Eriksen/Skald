@@ -1,6 +1,6 @@
-# Marquee
+# Skald
 
-**The film everyone wants to watch.** Add one or more Letterboxd usernames, tap through six quick questions about the vibe, and Marquee picks tonight's film. It knows what everyone has already seen, what they loved, and what's been sitting on their watchlists.
+**The film everyone wants to watch.** Add one or more Letterboxd usernames, pick a mood and how much time you have, and Skald picks tonight's film. It knows what everyone has already seen, what they loved, and what's been sitting on their watchlists.
 
 ## Run it
 

@@ -15,7 +15,7 @@ from selectolax.lexbor import LexborHTMLParser as HTMLParser
 
 from . import cache
 
-log = logging.getLogger("marquee")
+log = logging.getLogger("skald")
 BASE = "https://letterboxd.com"
 CONCURRENCY = 8  # ponytail: global limiter; per-host politeness tuning if Letterboxd starts throttling
 MAX_LIST_PAGES = 80  # ~5.7k films; anyone bigger gets truncated

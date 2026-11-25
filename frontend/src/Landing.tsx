@@ -106,7 +106,7 @@ export default function Landing({ initial, onStart }: { initial: Profile[]; onSt
             wants to watch.
           </h1>
           <p className="lede">
-            Add your Letterboxd usernames and answer a few quick questions. Marquee reads every diary entry, like and watchlist, then
+            Add your Letterboxd usernames and answer a few quick questions. Skald reads every diary entry, like and watchlist, then
             picks tonight's film for the whole room.
           </p>
         </motion.div>

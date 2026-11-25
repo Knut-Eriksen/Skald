@@ -30,7 +30,10 @@ export function Icon({ name, ...rest }: { name: keyof typeof paths } & React.SVG
 export function Logo() {
   return (
     <svg viewBox="0 0 24 24" aria-hidden="true">
-      <path d="M5 19V5l7 8 7-8v14" fill="none" stroke="var(--accent)" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
+      {/* a round shield carrying the rune ᚦ, whose stave-and-wedge doubles as a play button */}
+      <circle cx="12" cy="12" r="8.6" fill="none" stroke="var(--accent)" strokeWidth="1.8" />
+      <path d="M9.8 1.8v20.4" stroke="var(--accent)" strokeWidth="2.2" strokeLinecap="round" />
+      <path d="M9.8 8.4 16 12l-6.2 3.6z" fill="var(--accent)" stroke="var(--accent)" strokeWidth="1.2" strokeLinejoin="round" />
     </svg>
   )
 }
