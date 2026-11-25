@@ -28,7 +28,7 @@ export function steps(solo: boolean): Step[] {
         { v: 100, label: 'A quick one', sub: 'Under 1h 40m' },
         { v: 130, label: 'A regular evening', sub: 'Up to 2h 10m' },
         { v: 160, label: 'Settle in', sub: 'Up to 2h 40m' },
-        { v: null, label: 'All night', sub: 'No limit, bring on the epics' },
+        { v: null, label: 'All night', sub: 'No limit' },
       ],
     },
     {
@@ -79,7 +79,8 @@ export default function Quiz({
   onDone: () => void
   onBack: () => void
 }) {
-  const all = steps(people.length === 1)
+  // ponytail: the quiz asks only mood + time; era, fame, shelf and subtitles keep defaults and live in the tune drawer
+  const all = steps(people.length === 1).slice(0, 2)
   const [i, setI] = useState(0)
   const [dir, setDir] = useState(1)
   const step = all[i]

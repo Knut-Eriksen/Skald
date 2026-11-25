@@ -89,6 +89,23 @@ MOODS = {
     },
 }
 
+# Genres that make a film read as the *wrong* mood to a person, however many keywords it hits
+# (Isle of Dogs is tagged Adventure, but nobody calls a 100-minute stop-motion comedy an "epic escape").
+AVOID = {
+    "cozy": {"Horror": 1.0, "War": 0.8, "Thriller": 0.6, "Crime": 0.5},
+    "tense": {"Family": 1.0, "Documentary": 0.8, "Animation": 0.6, "Romance": 0.3},
+    "funny": {"War": 0.8, "Horror": 0.6, "Documentary": 0.5, "Thriller": 0.4},
+    "emotional": {"Horror": 0.6, "Action": 0.4},
+    "mindbend": {"Family": 0.8, "Documentary": 0.8, "Romance": 0.4, "Comedy": 0.3},
+    "dark": {"Family": 1.0, "Comedy": 0.5, "Romance": 0.5, "Animation": 0.4},
+    "epic": {"Documentary": 1.0, "Comedy": 0.6, "Horror": 0.5, "Romance": 0.3, "Family": 0.3, "Animation": 0.3},
+    "romantic": {"Horror": 1.0, "War": 0.6, "Action": 0.3},
+    "artful": {"Action": 0.6, "Family": 0.5, "Comedy": 0.3},
+    "true": {"Fantasy": 1.0, "Science Fiction": 1.0, "Animation": 0.6, "Horror": 0.6},
+}
+# +1: the mood wants a long, sweeping film; -1: it wants a light, short one
+LENGTH = {"epic": 1, "cozy": -1, "funny": -1}
+
 ERAS = {"new": (2015, 9999), "modern": (1990, 2014), "classic": (0, 1989)}
 ERA_DECADES = {"new": ["2010s", "2020s"], "modern": ["1990s", "2000s"], "classic": ["1960s", "1970s", "1980s"]}
 # Letterboxd genre slugs to browse when a mood is picked (so the vibe can surface films outside everyone's taste)
@@ -250,22 +267,24 @@ def mood_score(f: Film, mood: str) -> tuple[float, str | None]:
     m = MOODS[mood]
     themes, syn = _text(f)
     genre = max((m["genres"].get(g, 0) for g in f.genres), default=0)
-    th = _count(m["kw"], themes)
-    sy = _count(m["kw"], syn)
-    kw = _clamp((th + 0.4 * sy) / 2.2)
+    # themes are Letterboxd's curated nanogenres; a synopsis saying "epic journey" is cheap talk
+    kw = _clamp((_count(m["kw"], themes) + 0.25 * _count(m["kw"], syn)) / 2)
     anti = _count(m["anti"], themes) * 0.3
+    avoid = max((AVOID[mood].get(g, 0) for g in f.genres), default=0)
+    shape = 0.5
+    if LENGTH.get(mood) and f.runtime:
+        long = _clamp((f.runtime - 105) / 45)  # 1h45 -> 0, 2h30 -> 1
+        shape = long if LENGTH[mood] > 0 else 1 - long
     hits = [(_count(m["kw"], t.lower()) - _count(m["anti"], t.lower()), -i, t) for i, t in enumerate(f.themes)]
     best = max(hits, default=(0, 0, None))
-    return _clamp(0.5 * genre + 0.5 * kw - anti), best[2] if best[0] > 0 else None
+    score = 0.45 * genre + 0.45 * kw + 0.2 * (shape - 0.5) - 0.45 * avoid - anti
+    return _clamp(score), best[2] if best[0] > 0 else None
 
 
-def popularity(f: Film) -> float:
-    return _clamp((math.log10(f.rating_count + 1) - 3.5) / 2.6)  # ~3k ratings -> 0, ~1.2M -> 1
-
-
-def fame_fit(f: Film, fame: str) -> float:
-    p = popularity(f)
-    return {"popular": p, "gem": 1 - p, "between": 1 - abs(p - 0.5) * 1.6}.get(fame, 0.6)
+def fame_fit(p: float, fame: str) -> float:
+    """p = how well-known the film is *relative to tonight's candidates* (0..1): a "hidden gem" from a
+    watchlist of classics is the least-seen of them, not something with 300 ratings."""
+    return {"popular": p, "gem": 1 - p, "between": 1 - abs(p - 0.5) * 2}.get(fame, 0.6)
 
 
 def quality(f: Film) -> float:
@@ -348,28 +367,29 @@ def recommend(pool: Pool, answers: dict | None = None, limit: int = 30) -> list[
     match = {u: _calibrated(raw[u], pool, u, profiles.get(u, {}), idf) for u in users}
     seed_maps = {u: {sd.slug: sd for sd in pool.seeds.get(u, []) if sd.weight > 0} for u in users}
 
+    fame = _rank01({s: pool.films[s].rating_count for s in cand})
     scored = []
     for s in cand:
         f = pool.films[s]
         tastes = [per_user[u][s] for u in users]
         group_taste = 0.6 * sum(tastes) / n_users + 0.4 * min(tastes)  # nobody should hate it
         moods = [(m, *mood_score(f, m)) for m in a["moods"] if m in MOODS]
-        vibe = max((sc for _, sc, _ in moods), default=0.5)
+        fits = [sc for _, sc, _ in moods]
         wl = len(pool.watchlisted.get(s, ())) / n_users
-        mult = 1.0
+        # what you'd pick with no mood in mind: your taste, how good it is, whether you saved it
+        score = 0.5 * group_taste + 0.25 * quality(f) + 0.25 * wl
+        if fits:  # a mood is a request, not a nudge: the film has to *be* it. Two moods = a blend of both.
+            vibe = 0.6 * max(fits) + 0.4 * min(fits)
+            score *= 0.15 + 0.85 * vibe ** 1.3
+        if a["fame"] != "any":
+            score *= 0.3 + 0.7 * fame_fit(fame[s], a["fame"])
         if a["era"] in ERAS and f.year:
             lo, hi = ERAS[a["era"]]
-            mult *= 1.0 if lo <= f.year <= hi else 0.4
+            score *= 1.0 if lo <= f.year <= hi else 0.3
         if a["runtime"] and f.runtime and f.runtime > a["runtime"]:
-            mult *= 0.7
+            score *= 0.7
         if a["source"] == "mix" and s in pool.watchlisted:
-            mult *= 1.08
-        if moods:  # an explicit mood is a strong request: weigh it up, and sink films that ignore it
-            score = 0.27 * group_taste + 0.38 * vibe + 0.12 * quality(f) + 0.12 * wl + 0.11 * fame_fit(f, a["fame"])
-            mult *= 0.7 if vibe < 0.3 else 1.0
-        else:
-            score = 0.36 * group_taste + 0.2 * vibe + 0.16 * quality(f) + 0.16 * wl + 0.12 * fame_fit(f, a["fame"])
-        score *= mult
+            score *= 1.08
         scored.append((score, s, moods, tastes))
 
     scored.sort(key=lambda x: -x[0])

@@ -49,6 +49,28 @@ def test_recommend():
     assert any("Mann" in r["text"] for r in thief["reasons"]), thief["reasons"]
 
 
+def test_moods_feel_human():
+    isle = film("isle-of-dogs", ["Comedy", "Animation", "Adventure"], ["Quirky and endearing relationships"],
+                runtime=101)
+    isle.synopsis = "The outcasts must soon embark on an epic journey."
+    lawrence = film("lawrence", ["Adventure", "War", "History"],
+                    ["Epic history and literature", "Historical battles and epic heroism"], runtime=228)
+    assert mood_score(lawrence, "epic")[0] > 0.8 > 0.5 > mood_score(isle, "epic")[0]
+
+    films = {f.slug: f for f in [isle, lawrence,
+                                 film("crime-comedy", ["Crime", "Comedy", "Thriller"], ["Dark crime comedy"]),
+                                 film("paddington", ["Family", "Comedy"], ["Heartwarming and charming family"]),
+                                 film("big", ["Drama"], count=2_000_000), film("small", ["Drama"], count=4_000)]}
+    u = user("ana", [], watchlist=list(films))
+    pool = Pool(users=[u], films=films, seeds={"ana": []}, watchlisted=watchlist_candidates([u])[0])
+    top = lambda ans: recommend(pool, ans)[0]["film"]["slug"]
+    assert top({"moods": ["epic"]}) == "lawrence"  # even though Isle of Dogs matches "epic journey"
+    assert top({"moods": ["cozy", "funny"]}) == "paddington"  # two moods = both, not either
+    order = lambda ans: [p["film"]["slug"] for p in recommend(pool, ans)]
+    gem, popular = order({"fame": "gem"}), order({"fame": "popular"})
+    assert gem.index("small") < gem.index("big") and popular.index("big") < popular.index("small")
+
+
 def test_mood_word_boundaries():
     assert mood_score(film("v", ["Drama"], ["Intense violence"]), "tense")[0] == 0  # "tense" ≠ "intense"
     assert mood_score(film("p", ["Family"], ["Heartwarming and charming family"]), "cozy")[0] > 0.6
@@ -56,5 +78,6 @@ def test_mood_word_boundaries():
 
 if __name__ == "__main__":
     test_recommend()
+    test_moods_feel_human()
     test_mood_word_boundaries()
     print("ok")

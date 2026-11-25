@@ -189,7 +189,7 @@ export default function Landing({ initial, onStart }: { initial: Profile[]; onSt
             <span>01 — Read</span>Every diary entry, rating, like and watchlist, so nobody gets something they've already seen.
           </div>
           <div>
-            <span>02 — Ask</span>Six quick taps on mood, time and era while we do the reading in the background.
+            <span>02 — Ask</span>Two quick taps, mood and time, while we do the reading in the background.
           </div>
           <div>
             <span>03 — Pick</span>A top pick for the whole group, with the reasons behind it, a trailer and where to stream it.
