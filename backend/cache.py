@@ -1,10 +1,11 @@
 """Tiny sqlite key/value cache with per-read TTL."""
 import json
+import os
 import sqlite3
 import time
 from pathlib import Path
 
-_db = sqlite3.connect(Path(__file__).parent.parent / "cache.sqlite3", check_same_thread=False)
+_db = sqlite3.connect(os.getenv("CACHE_DB") or Path(__file__).parent.parent / "cache.sqlite3", check_same_thread=False)
 _db.execute("PRAGMA journal_mode=WAL")
 _db.execute("CREATE TABLE IF NOT EXISTS kv (k TEXT PRIMARY KEY, v TEXT, t REAL)")
 

@@ -1,0 +1,9 @@
+.git
+.venv
+.idea
+.taste-skill
+**/node_modules
+**/__pycache__
+frontend/dist
+cache.sqlite3*
+.env
