@@ -4,6 +4,8 @@ import time
 import uuid
 from dataclasses import dataclass, field
 
+VIBE_POOL = 110  # films per (mood, era) pulled from Letterboxd's genre charts
+
 from . import letterboxd as lb, recommend as rec, tmdb
 
 SEEDS_FOR_SIMILAR = 16  # per user
@@ -21,6 +23,7 @@ class Job:
     created: float = field(default_factory=time.time)
     changed: asyncio.Event = field(default_factory=asyncio.Event)
     task: asyncio.Task | None = None
+    vibe_tasks: dict[tuple[str, str], asyncio.Task] = field(default_factory=dict)
 
     def update(self, **kw):
         for k, v in kw.items():
@@ -114,3 +117,46 @@ async def gather(j: Job) -> rec.Pool:
 
     return rec.Pool(users=list(users), films=films, seeds=seeds, watchlisted=watchlisted,
                     discovered=discovered, watched_any=watched)
+
+
+def prefetch_vibe(j: Job, moods: list[str], era: str) -> list[asyncio.Task]:
+    """Start (or reuse) background fetches of genre charts for the chosen moods. Cheap to call repeatedly."""
+    tasks = []
+    for m in moods:
+        if m not in rec.MOODS:
+            continue
+        key = (m, era if era in rec.ERA_DECADES else "any")
+        if key not in j.vibe_tasks:
+            j.vibe_tasks[key] = asyncio.create_task(_vibe(j, *key))
+        tasks.append(j.vibe_tasks[key])
+    return tasks
+
+
+async def _vibe(j: Job, mood: str, era: str) -> tuple[str, list[str]]:
+    paths = []
+    for g in rec.MOOD_BROWSE[mood]:
+        if era == "any":
+            paths += [f"popular/genre/{g}/", f"popular/genre/{g}/page/2/"]
+        else:
+            paths += [f"popular/genre/{g}/decade/{d}/" for d in rec.ERA_DECADES[era]]
+    lists = await asyncio.gather(*(lb.browse(p) for p in paths))
+    slugs, seen = [], set()
+    for row in zip(*lists):  # interleave so every list gets represented
+        for s in row:
+            if s not in seen:
+                seen.add(s)
+                slugs.append(s)
+    slugs = slugs[:VIBE_POOL]
+    await lb.films(slugs)  # warm the cache; the pool merges them once both are ready
+    return mood, slugs
+
+
+async def apply_vibe(j: Job, answers: dict) -> None:
+    """Wait for this vibe's charts and merge them into the pool."""
+    tasks = prefetch_vibe(j, answers.get("moods") or [], answers.get("era") or "any")
+    if not tasks or j.pool is None:
+        return
+    for mood, slugs in await asyncio.gather(*tasks, return_exceptions=False):
+        missing = [s for s in slugs if s not in j.pool.films]
+        j.pool.films.update(await lb.films(missing))
+        j.pool.vibe_found.setdefault(mood, set()).update(s for s in slugs if s in j.pool.films)

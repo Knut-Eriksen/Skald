@@ -75,7 +75,7 @@ function Developing({ job, onRetry }: { job: JobState | null; onRetry: () => voi
         <h2 className="display">Developing your picks</h2>
         <AnimatePresence mode="wait">
           <motion.p key={job?.message} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }}>
-            {job?.message ?? 'Threading the film'}
+            {job?.ready ? 'Matching everything to the vibe' : job?.message ?? 'Threading the film'}
           </motion.p>
         </AnimatePresence>
         <div className="bar">
@@ -153,6 +153,12 @@ export default function App() {
     if (stage === 'developing' && job?.ready && !busy) fetchPicks(answers)
   }, [stage, job?.ready]) // eslint-disable-line react-hooks/exhaustive-deps
 
+  // mood + era are known early in the quiz: warm the genre charts for them in the background
+  const moodKey = answers.moods.join(',')
+  useEffect(() => {
+    if (job?.id && moodKey) api.vibe(job.id, answers.moods, answers.era)
+  }, [job?.id, moodKey, answers.era]) // eslint-disable-line react-hooks/exhaustive-deps
+
   // live re-score while tuning
   const retune = (a: Answers) => {
     setAnswers(a)
@@ -203,7 +209,7 @@ export default function App() {
               setAnswers={setAnswers}
               job={job}
               onBack={reset}
-              onDone={() => (job?.ready ? fetchPicks(answers) : setStage('developing'))}
+              onDone={() => setStage('developing')}
             />
           )}
           {stage === 'developing' && <Developing job={job} onRetry={() => start(people, 'developing')} />}

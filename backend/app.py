@@ -72,6 +72,17 @@ async def job_events(job_id: str):
     return StreamingResponse(stream(), media_type="text/event-stream", headers={"Cache-Control": "no-cache"})
 
 
+class VibeBody(BaseModel):
+    moods: list[str] = []
+    era: str = "any"
+
+
+@app.post("/api/jobs/{job_id}/vibe")
+async def prefetch_vibe(job_id: str, body: VibeBody):
+    engine.prefetch_vibe(_job(job_id), body.moods[:2], body.era)
+    return {"ok": True}
+
+
 class RecommendBody(BaseModel):
     answers: dict = {}
     limit: int = Field(30, ge=1, le=60)
@@ -87,6 +98,10 @@ async def recommend(job_id: str, body: RecommendBody):
             pass  # _run already recorded j.error
     if j.error:
         raise HTTPException(502, j.error)
+    try:
+        await engine.apply_vibe(j, body.answers)
+    except (lb.Blocked, lb.NotFound):
+        pass  # vibe charts are a bonus; recommend from what we have
     pool = j.pool
     picks = rec.recommend(pool, body.answers, body.limit)
     return {

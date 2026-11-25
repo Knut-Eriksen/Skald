@@ -88,6 +88,12 @@ export const api = {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ answers, limit: 36 }),
     }).then(json<Results>),
+  vibe: (job: string, moods: string[], era: string) =>
+    fetch(`/api/jobs/${job}/vibe`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ moods, era }),
+    }).catch(() => {}),
   availability: (slug: string) =>
     fetch(`/api/film/${slug}/availability`).then(json<{ services: Service[]; country: string | null }>),
   watch(job: string, onState: (s: JobState) => void) {

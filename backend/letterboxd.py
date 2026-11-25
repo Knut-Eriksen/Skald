@@ -85,7 +85,7 @@ class Profile:
 
 def _parse_grid(doc: HTMLParser) -> list[ListFilm]:
     out = []
-    for li in doc.css("li.griditem, li.poster-container"):
+    for li in doc.css("li.griditem, li.posteritem, li.poster-container"):
         node = li.css_first("[data-item-slug]") or li.css_first("[data-film-slug]")
         if not node:
             continue
@@ -338,6 +338,20 @@ async def similar(slug: str, limit: int = 24) -> list[str]:
     out = [f.slug for f in _parse_grid(doc) if f.slug != slug]
     cache.set(key, out)
     return out[:limit]
+
+
+async def browse(path: str) -> list[str]:
+    """A Letterboxd film browser page, e.g. 'popular/genre/horror/decade/2010s/'."""
+    key = f"browse:{path}"
+    if (hit := cache.get(key, 7 * 86400)) is not None:
+        return hit
+    try:
+        doc = HTMLParser(await fetch(f"/csi/films/films-browser-list/{path}?esiAllowFilters=true"))
+    except (NotFound, Blocked):
+        return []
+    out = [f.slug for f in _parse_grid(doc)]
+    cache.set(key, out)
+    return out
 
 
 async def tmdb_to_slug(tmdb_id: int) -> str | None:

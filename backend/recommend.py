@@ -90,6 +90,11 @@ MOODS = {
 }
 
 ERAS = {"new": (2015, 9999), "modern": (1990, 2014), "classic": (0, 1989)}
+ERA_DECADES = {"new": ["2010s", "2020s"], "modern": ["1990s", "2000s"], "classic": ["1960s", "1970s", "1980s"]}
+# Letterboxd genre slugs to browse when a mood is picked (so the vibe can surface films outside everyone's taste)
+MOOD_BROWSE = {"cozy": ["family", "animation"], "tense": ["thriller"], "funny": ["comedy"], "emotional": ["drama"],
+               "mindbend": ["science-fiction", "mystery"], "dark": ["horror"], "epic": ["adventure", "fantasy"],
+               "romantic": ["romance"], "artful": [], "true": ["documentary", "history"]}
 
 DEFAULT_ANSWERS = {
     "moods": [],          # up to 2 MOODS keys; empty = anything
@@ -175,6 +180,7 @@ class Pool:
     watchlisted: dict[str, set[str]]                    # slug -> usernames
     discovered: dict[str, list[tuple[str, str]]] = field(default_factory=dict)  # slug -> [(username, seed slug)]
     watched_any: set[str] = field(default_factory=set)
+    vibe_found: dict[str, set[str]] = field(default_factory=dict)  # mood -> slugs from genre browsing
 
 
 def watchlist_candidates(users: list[UserData], cap: int = 400) -> tuple[dict[str, set[str]], list[str]]:
@@ -314,6 +320,9 @@ def recommend(pool: Pool, answers: dict | None = None, limit: int = 30) -> list[
         cand = set(pool.discovered) - set(pool.watchlisted)
     else:
         cand = set(pool.watchlisted) | set(pool.discovered)
+    if a["source"] != "watchlist":
+        for m in a["moods"]:
+            cand |= pool.vibe_found.get(m, set()) - set(pool.watchlisted)
     cand = [s for s in cand - pool.watched_any if s in pool.films]
 
     # hard filters
@@ -355,7 +364,12 @@ def recommend(pool: Pool, answers: dict | None = None, limit: int = 30) -> list[
             mult *= 0.7
         if a["source"] == "mix" and s in pool.watchlisted:
             mult *= 1.08
-        score = (0.33 * group_taste + 0.27 * vibe + 0.14 * quality(f) + 0.14 * wl + 0.12 * fame_fit(f, a["fame"])) * mult
+        if moods:  # an explicit mood is a strong request: weigh it up, and sink films that ignore it
+            score = 0.27 * group_taste + 0.38 * vibe + 0.12 * quality(f) + 0.12 * wl + 0.11 * fame_fit(f, a["fame"])
+            mult *= 0.7 if vibe < 0.3 else 1.0
+        else:
+            score = 0.36 * group_taste + 0.2 * vibe + 0.16 * quality(f) + 0.16 * wl + 0.12 * fame_fit(f, a["fame"])
+        score *= mult
         scored.append((score, s, moods, tastes))
 
     scored.sort(key=lambda x: -x[0])
@@ -397,6 +411,12 @@ def recommend(pool: Pool, answers: dict | None = None, limit: int = 30) -> list[
         because = _because(pool, f, s, users, seed_maps, display, solo, used_seeds)
         if because:
             reasons.append({"kind": "taste", "text": because})
+        if not who and not because and s not in pool.discovered:
+            chart = next((MOODS[m]["label"] for m in a["moods"] if s in pool.vibe_found.get(m, ())), None)
+            if chart and f.rating_count:
+                n = f.rating_count
+                fans = f"{n / 1e6:.1f}M" if n >= 1e6 else f"{n // 1000}k" if n >= 1000 else str(n)
+                reasons.append({"kind": "taste", "text": f"A {chart.lower()} favourite: {fans} Letterboxd ratings"})
         best_mood = max(moods, key=lambda m: m[1], default=None)
         if best_mood and best_mood[1] > 0.35 and best_mood[2]:
             reasons.append({"kind": "vibe", "text": best_mood[2]})
