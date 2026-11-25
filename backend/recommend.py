@@ -16,28 +16,28 @@ from .letterboxd import Film, UserData
 
 MOODS = {
     "cozy": {
-        "label": "Cozy & warm",
+        "label": "Cozy",
         "genres": {"Comedy": 0.6, "Family": 0.9, "Animation": 0.8, "Romance": 0.5},
         "kw": ["heartwarming", "feel-good", "charming", "wholesome", "cozy", "sweet", "touching", "friendship",
                "whimsical", "delightful", "uplifting", "endearing", "gentle", "comforting", "heartfelt"],
         "anti": ["horror", "gore", "violent", "disturbing", "brutal", "terrifying", "grisly"],
     },
     "tense": {
-        "label": "Edge of your seat",
+        "label": "Thrilling",
         "genres": {"Thriller": 1.0, "Crime": 0.7, "Action": 0.6, "Mystery": 0.6},
         "kw": ["tense", "suspense", "gripping", "thrilling", "heist", "chase", "nerve", "survival",
                "conspiracy", "espionage", "spy", "cat-and-mouse", "pulse", "high-stakes", "adrenaline"],
         "anti": ["heartwarming", "whimsical", "wholesome"],
     },
     "funny": {
-        "label": "Laugh out loud",
+        "label": "Funny",
         "genres": {"Comedy": 1.0},
         "kw": ["funny", "hilarious", "comedy", "comedic", "witty", "quirky", "absurd", "satire", "humor",
                "humour", "laugh", "slapstick", "outrageous", "zany", "raunchy", "parody", "deadpan"],
         "anti": ["tragic", "heartbreaking", "grief", "suffering", "bleak"],
     },
     "emotional": {
-        "label": "Wreck me",
+        "label": "Emotional",
         "genres": {"Drama": 0.8, "Romance": 0.5},
         "kw": ["moving", "heartbreak", "tragic", "emotional", "tear", "grief", "loss", "sad", "poignant",
                "touching", "sentimental", "melancholy", "devastating", "suffering", "mourning", "powerful"],
@@ -52,7 +52,7 @@ MOODS = {
         "anti": ["slapstick", "wholesome"],
     },
     "dark": {
-        "label": "Dark & unsettling",
+        "label": "Scary",
         "genres": {"Horror": 1.0, "Thriller": 0.5},
         "kw": ["horror", "terrifying", "creepy", "disturbing", "eerie", "haunting", "dread", "supernatural",
                "gore", "nightmare", "sinister", "bleak", "unsettling", "macabre", "chilling", "scary", "demonic",
@@ -60,7 +60,7 @@ MOODS = {
         "anti": ["heartwarming", "wholesome", "feel-good", "whimsical"],
     },
     "epic": {
-        "label": "Epic escape",
+        "label": "Epic adventure",
         "genres": {"Adventure": 1.0, "Fantasy": 0.8, "Science Fiction": 0.6, "War": 0.5, "Action": 0.5,
                    "History": 0.4},
         "kw": ["epic", "adventure", "quest", "journey", "spectacular", "battle", "kingdom", "galaxy", "legend",
@@ -68,14 +68,14 @@ MOODS = {
         "anti": [],
     },
     "romantic": {
-        "label": "Swoon",
+        "label": "Romantic",
         "genres": {"Romance": 1.0},
         "kw": ["romance", "romantic", "love", "passion", "relationship", "lovers", "falling in love", "desire",
                "captivating relationships", "courtship"],
         "anti": ["gore", "slasher", "terrifying"],
     },
     "artful": {
-        "label": "Dreamy & artful",
+        "label": "Artsy",
         "genres": {"Drama": 0.4, "Fantasy": 0.3},
         "kw": ["beautiful", "poetic", "dreamlike", "atmospheric", "visually", "stunning", "contemplative",
                "meditative", "lyrical", "artistic", "beauty", "mesmerizing", "surreal", "quiet", "ethereal",
@@ -83,7 +83,7 @@ MOODS = {
         "anti": ["slapstick", "raunchy", "superhero"],
     },
     "true": {
-        "label": "Real stories",
+        "label": "True story",
         "genres": {"Documentary": 1.0, "History": 0.6},
         "kw": ["true story", "documentary", "biography", "biopic", "real-life", "historical", "based on",
                "inspiring", "politics", "journalism", "musician", "legacy"],
@@ -448,7 +448,7 @@ def recommend(pool: Pool, answers: dict | None = None, limit: int = 30) -> list[
             if chart and f.rating_count:
                 n = f.rating_count
                 fans = f"{n / 1e6:.1f}M" if n >= 1e6 else f"{n // 1000}k" if n >= 1000 else str(n)
-                reasons.append({"kind": "taste", "text": f"A {chart.lower()} favourite: {fans} Letterboxd ratings"})
+                reasons.append({"kind": "taste", "text": f"Popular {chart.lower()} pick: {fans} Letterboxd ratings"})
         best_mood = max(moods, key=lambda m: m[1], default=None)
         if best_mood and best_mood[1] > 0.35 and best_mood[2]:
             reasons.append({"kind": "vibe", "text": best_mood[2]})

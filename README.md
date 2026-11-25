@@ -21,7 +21,7 @@ Optional: copy `.env.example` to `.env` and add a free [TMDB](https://www.themov
 3. **Gather candidates.**
    - *Watchlists:* everything on anyone's watchlist that nobody has seen. Films on several watchlists come first.
    - *New finds:* Letterboxd's "similar films" for everyone's favourites, ranked by how many favourites (and people) point at them. With a TMDB key, TMDB recommendations are added too.
-   - *Vibe charts:* once you pick a mood (and era), the matching Letterboxd genre charts are fetched in the background, so "Epic escape" can surface epics even for a group of drama fans.
+   - *Vibe charts:* once you pick a mood (and era), the matching Letterboxd genre charts are fetched in the background, so "Epic adventure" can surface epics even for a group of drama fans.
 4. **Score.** Each candidate gets: group taste (average blended with the *least* happy member, so nobody gets stuck with something they'd hate) + vibe fit (genre and theme keywords) + Letterboxd rating + watchlist overlap + crowd-pleaser vs hidden-gem fit. Runtime, era and subtitles filter the list. A director-diversity pass stops one filmmaker from taking over the list.
 5. **Explain.** Every pick says *why*: who has it on their watchlist, which loved film it connects to ("From Park Chan-wook, director of Oldboy"), and which theme matches the mood.
 

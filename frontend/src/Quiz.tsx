@@ -7,16 +7,16 @@ type Opt = { v: unknown; label: string; sub: string; glow?: string }
 export type Step = { key: keyof Answers; eyebrow: string; q: string; hint?: string; multi?: number; options: Opt[] }
 
 export const MOODS: Opt[] = [
-  { v: 'cozy', label: 'Cozy & warm', sub: 'Blankets and gentle laughs', glow: '#e8a33d' },
-  { v: 'tense', label: 'Edge of your seat', sub: 'Hold your breath', glow: '#d2452f' },
-  { v: 'funny', label: 'Laugh out loud', sub: 'Proper, real laughs', glow: '#e9d14a' },
-  { v: 'emotional', label: 'Wreck me', sub: 'Bring tissues', glow: '#4f79b8' },
-  { v: 'mindbend', label: 'Mind-bending', sub: 'Leave with questions', glow: '#8a63e0' },
-  { v: 'dark', label: 'Dark & unsettling', sub: 'Lights off, nerves on', glow: '#8f1f1f' },
-  { v: 'epic', label: 'Epic escape', sub: 'Big-screen energy', glow: '#e07b2c' },
-  { v: 'romantic', label: 'Swoon', sub: 'Butterflies included', glow: '#dc5f83' },
-  { v: 'artful', label: 'Dreamy & artful', sub: 'Every frame a painting', glow: '#3da393' },
-  { v: 'true', label: 'Real stories', sub: 'Stranger than fiction', glow: '#9b9488' },
+  { v: 'cozy', label: 'Cozy', sub: 'Warm, feel-good, easy', glow: '#e8a33d' },
+  { v: 'tense', label: 'Thrilling', sub: 'Suspense, crime, spies', glow: '#d2452f' },
+  { v: 'funny', label: 'Funny', sub: 'Comedies', glow: '#e9d14a' },
+  { v: 'emotional', label: 'Emotional', sub: 'Moving dramas, a good cry', glow: '#4f79b8' },
+  { v: 'mindbend', label: 'Mind-bending', sub: 'Twists and big ideas', glow: '#8a63e0' },
+  { v: 'dark', label: 'Scary', sub: 'Horror and creepy stuff', glow: '#8f1f1f' },
+  { v: 'epic', label: 'Epic adventure', sub: 'Big, sweeping, long', glow: '#e07b2c' },
+  { v: 'romantic', label: 'Romantic', sub: 'Love stories', glow: '#dc5f83' },
+  { v: 'artful', label: 'Artsy', sub: 'Slow, beautiful, arthouse', glow: '#3da393' },
+  { v: 'true', label: 'True story', sub: 'Real events and documentaries', glow: '#9b9488' },
 ]
 
 export function steps(solo: boolean): Step[] {
