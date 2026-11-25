@@ -70,9 +70,11 @@ export default function Landing({ initial, onStart }: { initial: Profile[]; onSt
       .split(/[\s,]+/)
       .map((s) => s.replace(/^@/, '').replace(/^https?:\/\/(www\.)?letterboxd\.com\//, '').replace(/\/.*$/, '').trim())
       .filter(Boolean)
+    const taken = new Set(entries.map((e) => e.username.toLowerCase()))
     for (const name of names) {
-      if (entries.some((e) => e.username.toLowerCase() === name.toLowerCase())) continue
-      if (entries.length >= 8) break
+      if (taken.has(name.toLowerCase())) continue
+      if (taken.size >= 8) break
+      taken.add(name.toLowerCase())
       const key = name + Date.now()
       setEntries((es) => [...es, { key, username: name, state: 'pending' }])
       api
