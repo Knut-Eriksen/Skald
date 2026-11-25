@@ -191,7 +191,7 @@ function Card({ pick, onClick, i, rank }: { pick: Pick; onClick: () => void; i: 
   )
 }
 
-function Tune({ open, onClose, answers, onChange, solo }: { open: boolean; onClose: () => void; answers: Answers; onChange: (a: Answers) => void; solo: boolean }) {
+function Tune({ open, onClose, answers, onChange }: { open: boolean; onClose: () => void; answers: Answers; onChange: (a: Answers) => void }) {
   return (
     <Overlay open={open} onClose={onClose}>
       <motion.aside className="drawer" initial={{ x: '100%' }} animate={{ x: 0, transition: { duration: 0.4, ease: drawerEase } }} exit={{ x: '100%', transition: { duration: 0.25, ease: drawerEase } }} aria-label="Adjust the vibe">
@@ -202,7 +202,7 @@ function Tune({ open, onClose, answers, onChange, solo }: { open: boolean; onClo
           </button>
         </header>
         <div className="body">
-          {steps(solo).map((s) => (
+          {steps().map((s) => (
             <section key={s.key}>
               <span className="eyebrow">{s.eyebrow}</span>
               <div className="pills">
@@ -344,7 +344,7 @@ export default function Results({ data, answers, onAnswers, busy }: { data: R; a
             </button>
           </div>
         </div>
-        <Tune open={tune} onClose={() => setTune(false)} answers={answers} onChange={onAnswers} solo={solo} />
+        <Tune open={tune} onClose={() => setTune(false)} answers={answers} onChange={onAnswers} />
       </section>
     )
   }
@@ -399,7 +399,7 @@ export default function Results({ data, answers, onAnswers, busy }: { data: R; a
       </section>
 
       <TrailerModal url={trailer} onClose={() => setTrailer(null)} />
-      <Tune open={tune} onClose={() => setTune(false)} answers={answers} onChange={onAnswers} solo={solo} />
+      <Tune open={tune} onClose={() => setTune(false)} answers={answers} onChange={onAnswers} />
       <Toast text={toast} />
       <AnimatePresence>
         {pastHero && (

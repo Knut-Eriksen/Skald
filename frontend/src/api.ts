@@ -55,6 +55,7 @@ export type Answers = {
   fame: 'any' | 'popular' | 'between' | 'gem'
   source: 'watchlist' | 'mix' | 'discover'
   subtitles: boolean
+  animation: boolean
 }
 
 export type Service = { name: string; icon: string | null; url: string; kinds: string[] }

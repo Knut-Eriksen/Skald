@@ -8,7 +8,7 @@ import { Avatar, Icon, Logo } from './ui'
 
 type Stage = 'who' | 'quiz' | 'developing' | 'results'
 
-const DEFAULTS: Answers = { moods: [], runtime: null, era: 'any', fame: 'any', source: 'mix', subtitles: true }
+const DEFAULTS: Answers = { moods: [], runtime: null, era: 'any', fame: 'any', source: 'mix', subtitles: true, animation: true }
 
 const store = {
   get<T>(k: string, fallback: T): T {
@@ -90,7 +90,8 @@ export default function App() {
   const [stage, setStage] = useState<Stage>('who')
   // storage keys keep the old 'marquee.' prefix so a renamed app still remembers your group
   const [people, setPeople] = useState<Profile[]>(() => store.get('marquee.people', []))
-  const [answers, setAnswersState] = useState<Answers>(() => ({ ...DEFAULTS, ...store.get('marquee.answers', {}) }))
+  // source is pinned to 'mix': the watchlist/new-finds toggle on the results page does the filtering
+  const [answers, setAnswersState] = useState<Answers>(() => ({ ...DEFAULTS, ...store.get('marquee.answers', {}), source: 'mix' }))
   const [job, setJob] = useState<JobState | null>(null)
   const [results, setResults] = useState<R | null>(null)
   const [busy, setBusy] = useState(false)

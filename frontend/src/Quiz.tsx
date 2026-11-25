@@ -19,7 +19,7 @@ export const MOODS: Opt[] = [
   { v: 'true', label: 'True story', sub: 'Real events and documentaries', glow: '#9b9488' },
 ]
 
-export function steps(solo: boolean): Step[] {
+export function steps(): Step[] {
   return [
     { key: 'moods', eyebrow: 'The mood', q: "What's the mood tonight?", hint: 'Pick one or two. Skip to keep it open.', multi: 2, options: MOODS },
     {
@@ -50,18 +50,17 @@ export function steps(solo: boolean): Step[] {
       ],
     },
     {
-      key: 'source', eyebrow: 'The shelf', q: 'Where should we look?',
-      options: [
-        { v: 'watchlist', label: solo ? 'My watchlist' : 'Our watchlists', sub: 'Finally get to those' },
-        { v: 'mix', label: 'Mix it up', sub: 'Watchlists plus new finds' },
-        { v: 'discover', label: 'Something new', sub: solo ? 'Nothing I’ve listed yet' : 'Nothing anyone has listed' },
-      ],
-    },
-    {
       key: 'subtitles', eyebrow: 'The fine print', q: 'Subtitles tonight?',
       options: [
         { v: true, label: 'Bring them on', sub: 'Any language' },
         { v: false, label: 'English only', sub: 'Keep it easy' },
+      ],
+    },
+    {
+      key: 'animation', eyebrow: 'Animation', q: 'Animated films?',
+      options: [
+        { v: true, label: 'Include animated', sub: 'Pixar, anime, all of it' },
+        { v: false, label: 'No animation', sub: 'Live action only' },
       ],
     },
   ]
@@ -79,8 +78,8 @@ export default function Quiz({
   onDone: () => void
   onBack: () => void
 }) {
-  // ponytail: the quiz asks only mood + time; era, fame, shelf and subtitles keep defaults and live in the tune drawer
-  const all = steps(people.length === 1).slice(0, 2)
+  // ponytail: the quiz asks only mood + time; era, fame, subtitles and animation keep defaults and live in the tune drawer
+  const all = steps().slice(0, 2)
   const [i, setI] = useState(0)
   const [dir, setDir] = useState(1)
   const step = all[i]

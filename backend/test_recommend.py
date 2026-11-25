@@ -22,9 +22,10 @@ def make_pool():
         film("amelie", ["Comedy", "Romance"], ["Whimsical, quirky romance"], lang="French", director="Jeunet"),
         film("long-epic", ["Thriller"], ["Heists and thrilling action"], runtime=200, director="X"),
         film("violent", ["Drama"], ["Intense violence and transgression"], director="Y"),
+        film("spirited", ["Animation", "Fantasy"], lang="Japanese", director="Miyazaki"),
     ]}
     a = user("ana", [("heat", 10), ("paddington", 3)], liked=["heat"], watchlist=["collateral", "amelie", "long-epic"])
-    b = user("bo", [("collateral", None)], watchlist=["thief", "violent", "paddington"])
+    b = user("bo", [("collateral", None)], watchlist=["thief", "violent", "paddington", "spirited"])
     users = [a, b]
     watchlisted, _ = watchlist_candidates(users)
     return Pool(users=users, films=films, seeds={u.profile.username: pick_seeds(u) for u in users},
@@ -39,6 +40,9 @@ def test_recommend():
 
     short = [p["film"]["slug"] for p in recommend(pool, {"runtime": 120})]
     assert "long-epic" not in short
+
+    assert "spirited" in [p["film"]["slug"] for p in recommend(pool)]
+    assert "spirited" not in [p["film"]["slug"] for p in recommend(pool, {"animation": False})]
 
     english = [p["film"]["slug"] for p in recommend(pool, {"subtitles": False})]
     assert "amelie" not in english
@@ -109,6 +113,11 @@ def test_mix_keeps_new_finds():
     assert sum(p["source"] == "discovery" for p in picks) >= 3  # watchlist films are better rated, finds still show
 
 
+def test_likes_do_not_count():
+    u = user("cy", [("heat", None), ("thief", 9)], liked=["heat", "amelie"])
+    assert [sd.slug for sd in pick_seeds(u) if sd.weight > 0.4] == ["thief"]  # only the rating makes a taste seed
+
+
 def test_mood_word_boundaries():
     assert mood_score(film("v", ["Drama"], ["Intense violence"]), "tense")[0] == 0  # "tense" ≠ "intense"
     assert mood_score(film("p", ["Family"], ["Heartwarming and charming family"]), "cozy")[0] > 0.6
@@ -121,4 +130,5 @@ if __name__ == "__main__":
     test_new_blockbuster_is_not_a_gem()
     test_mix_keeps_new_finds()
     test_mood_word_boundaries()
+    test_likes_do_not_count()
     print("ok")

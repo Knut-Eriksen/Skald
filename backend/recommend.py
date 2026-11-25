@@ -127,6 +127,7 @@ DEFAULT_ANSWERS = {
     "fame": "any",        # "popular" | "between" | "gem" | "any"
     "source": "mix",      # "watchlist" | "mix" | "discover"
     "subtitles": True,    # False = English-language only
+    "animation": True,    # False = drop animated films
 }
 
 FEATURE_WEIGHTS = {"genre": 1.0, "theme": 0.9, "director": 1.6, "cast": 0.5, "country": 0.35, "lang": 0.35,
@@ -159,36 +160,28 @@ def features(f: Film) -> dict[str, float]:
 class Seed:
     slug: str
     weight: float  # negative = disliked
-    liked: bool
     rating: int | None
 
 
 def pick_seeds(u: UserData, n_pos: int = 40, n_neg: int = 10) -> list[Seed]:
-    """The films that best describe a user's taste: liked / highly rated, recent first."""
-    liked = set(u.liked)
+    """The films that best describe a user's taste: highly rated, recent first. Letterboxd likes are ignored on purpose."""
     total = max(len(u.watched), 1)
     scored, neg = [], []
     for i, f in enumerate(u.watched):
         recency = 1 - i / total
-        is_liked = f.slug in liked
         r = f.rating
-        if r is not None and r <= 4 and not is_liked:
-            neg.append(Seed(f.slug, -0.6, False, r))
+        if r is not None and r <= 4:
+            neg.append(Seed(f.slug, -0.6, r))
             continue
-        if is_liked or (r is not None and r >= 7):
-            score = 2 * is_liked + max(0, (r or 0) - 6) / 2 + recency
-            w = 0.6 + 0.4 * is_liked + max(0, (r or 0) - 6) / 8
-            scored.append((score, Seed(f.slug, w, is_liked, r)))
-    # liked films that were never logged (likes page only)
-    watched_slugs = {f.slug for f in u.watched}
-    for s in u.liked:
-        if s not in watched_slugs:
-            scored.append((2.0, Seed(s, 1.0, True, None)))
+        if r is not None and r >= 7:
+            score = (r - 6) / 2 + recency
+            w = 0.6 + (r - 6) / 8
+            scored.append((score, Seed(f.slug, w, r)))
     scored.sort(key=lambda x: -x[0])
     pos = [s for _, s in scored[:n_pos]]
     if len(pos) < 15:  # sparse profile: lean on whatever they watched recently
         have = {s.slug for s in pos} | {s.slug for s in neg}
-        pos += [Seed(f.slug, 0.4, False, f.rating) for f in u.watched if f.slug not in have][: 25 - len(pos)]
+        pos += [Seed(f.slug, 0.4, f.rating) for f in u.watched if f.slug not in have][: 25 - len(pos)]
     return pos + neg[:n_neg]
 
 
@@ -370,6 +363,8 @@ def recommend(pool: Pool, answers: dict | None = None, limit: int = 30) -> list[
             return False  # miniseries: Letterboxd lists them as films but TMDB has no movie id
         if not a["subtitles"] and f.language not in (None, "English", "No spoken language"):
             return False
+        if not a["animation"] and "Animation" in f.genres:
+            return False
         if a["runtime"] and f.runtime and f.runtime > a["runtime"] + 8:
             return False
         return True
@@ -485,9 +480,7 @@ def _because(pool, f, s, users, seed_maps, display, solo, used_seeds) -> str | N
     """Best 'because you loved X' link, preferring the similar-films graph, then shared director/cast/theme."""
     def loved(u, sd):
         who = "you" if solo else display[u]
-        if sd.liked:
-            verb = "loved"
-        elif sd.rating:
+        if sd.rating:
             verb = f"rated {'★' * (sd.rating // 2)}{'½' if sd.rating % 2 else ''}"
         else:
             verb = "enjoyed"
