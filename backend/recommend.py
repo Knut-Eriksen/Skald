@@ -3,6 +3,7 @@
 No I/O in here, so it is fast enough to re-score live while the vibe is tweaked.
 """
 import math
+from datetime import date
 from bisect import bisect_left, bisect_right
 import re
 from functools import lru_cache
@@ -282,9 +283,17 @@ def mood_score(f: Film, mood: str) -> tuple[float, str | None]:
     return _clamp(score), best[2] if best[0] > 0 else None
 
 
+def popularity(f: Film) -> float:
+    """0..1 how well-known a film is in absolute terms. Counts ratings per year too, so a brand-new Brad Pitt
+    film with 250k ratings reads as big, not as a deep cut next to classics with a million."""
+    total = _clamp((math.log10(f.rating_count + 1) - 4.3) / 1.7)  # 20k -> 0, 1M -> 1
+    age = max(1, date.today().year - (f.year or date.today().year))
+    per_year = _clamp((math.log10(f.rating_count / age + 1) - 3.7) / 1.6)  # 5k/yr -> 0, 200k/yr -> 1
+    return max(total, per_year)
+
+
 def fame_fit(p: float, fame: str) -> float:
-    """p = how well-known the film is *relative to tonight's candidates* (0..1): a "hidden gem" from a
-    watchlist of classics is the least-seen of them, not something with 300 ratings."""
+    """p = how well-known the film is (0..1), half absolute and half relative to tonight's candidates."""
     return {"popular": p, "gem": 1 - p, "between": 1 - abs(p - 0.5) * 2}.get(fame, 0.6)
 
 
@@ -369,7 +378,8 @@ def recommend(pool: Pool, answers: dict | None = None, limit: int = 30) -> list[
     match = {u: _calibrated(raw[u], pool, u, profiles.get(u, {}), idf) for u in users}
     seed_maps = {u: {sd.slug: sd for sd in pool.seeds.get(u, []) if sd.weight > 0} for u in users}
 
-    fame = _rank01({s: pool.films[s].rating_count for s in cand})
+    rel = _rank01({s: pool.films[s].rating_count for s in cand})
+    fame = {s: 0.5 * popularity(pool.films[s]) + 0.5 * rel[s] for s in cand}
     scored = []
     for s in cand:
         f = pool.films[s]

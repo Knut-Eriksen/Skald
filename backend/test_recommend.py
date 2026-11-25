@@ -71,6 +71,13 @@ def test_moods_feel_human():
     assert gem.index("small") < gem.index("big") and popular.index("big") < popular.index("small")
 
 
+def test_new_blockbuster_is_not_a_gem():
+    from .recommend import popularity
+    new_hit = film("heart-of-the-beast", ["Adventure"], count=246_000, year=2026)
+    old_cult = film("cult", ["Adventure"], count=246_000, year=1985)
+    assert popularity(new_hit) > 0.9 > popularity(old_cult)
+
+
 def test_mix_keeps_new_finds():
     films = {f"w{i}": film(f"w{i}", ["Adventure"], ["Epic adventure"], rating=4.2, director=f"w{i}") for i in range(12)}
     films |= {f"d{i}": film(f"d{i}", ["Adventure"], ["Epic adventure"], rating=3.6, director=f"d{i}") for i in range(12)}
@@ -89,6 +96,7 @@ def test_mood_word_boundaries():
 if __name__ == "__main__":
     test_recommend()
     test_moods_feel_human()
+    test_new_blockbuster_is_not_a_gem()
     test_mix_keeps_new_finds()
     test_mood_word_boundaries()
     print("ok")
