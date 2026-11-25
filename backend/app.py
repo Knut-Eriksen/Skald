@@ -81,7 +81,10 @@ class RecommendBody(BaseModel):
 async def recommend(job_id: str, body: RecommendBody):
     j = _job(job_id)
     if j.task and not j.pool and not j.error:
-        await asyncio.shield(j.task)
+        try:
+            await asyncio.shield(j.task)
+        except Exception:
+            pass  # _run already recorded j.error
     if j.error:
         raise HTTPException(502, j.error)
     pool = j.pool
