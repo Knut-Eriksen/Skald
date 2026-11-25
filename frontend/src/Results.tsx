@@ -134,7 +134,7 @@ function Hero({ pick, members, onTrailer, onSkip, skipLabel }: { pick: Pick; mem
             </div>
             <div className="matchcard">
               <div className="big">
-                <span className="eyebrow">{solo ? 'Taste match' : 'Group match'}</span>
+                <span className="eyebrow">{solo ? 'Taste match' : 'Group taste match'}</span>
                 <strong>{pick.match}%</strong>
               </div>
               {!solo &&
@@ -159,7 +159,7 @@ function Hero({ pick, members, onTrailer, onSkip, skipLabel }: { pick: Pick; mem
   )
 }
 
-function Card({ pick, onClick, i }: { pick: Pick; onClick: () => void; i: number }) {
+function Card({ pick, onClick, i, rank }: { pick: Pick; onClick: () => void; i: number; rank: number }) {
   const f = pick.film
   return (
     <motion.button
@@ -171,7 +171,7 @@ function Card({ pick, onClick, i }: { pick: Pick; onClick: () => void; i: number
     >
       <div className="poster">
         <Poster film={f} />
-        <span className="badge">{pick.match}%</span>
+        <span className="badge" title={`${pick.match}% taste match`}>#{rank}</span>
         <span className="src" title={pick.source === 'watchlist' ? 'On a watchlist' : 'New find'}>
           <Icon name={pick.source === 'watchlist' ? 'bookmark' : 'sparkle'} />
         </span>
@@ -382,6 +382,7 @@ export default function Results({ data, answers, onAnswers, busy }: { data: R; a
                 key={p.film.slug}
                 pick={p}
                 i={i}
+                rank={data.picks.indexOf(p) + 1}
                 onClick={() => {
                   setChosen(p.film.slug)
                   window.scrollTo({ top: 0, behavior: 'smooth' })
