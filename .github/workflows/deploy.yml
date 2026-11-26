@@ -7,4 +7,4 @@ jobs:
   deploy:
     uses: Knut-Eriksen/pi-deploy/.github/workflows/pi-deploy.yml@main
     with:
-      dir: skald
+      dir: Skald
