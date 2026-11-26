@@ -1,0 +1,10 @@
+name: deploy
+on:
+  push:
+    branches: [development]
+
+jobs:
+  deploy:
+    uses: Knut-Eriksen/pi-deploy/.github/workflows/pi-deploy.yml@main
+    with:
+      dir: skald
