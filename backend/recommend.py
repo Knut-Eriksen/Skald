@@ -383,6 +383,10 @@ def _rank01(values: dict[str, float]) -> dict[str, float]:
     return {s: (bisect_left(vals, v) + bisect_right(vals, v) - 1) / 2 / n for s, v in values.items()}
 
 
+def _seen_version(title: str, seen: set[str]) -> bool:
+    return title in seen or any(title.startswith(t + " and ") for t in seen if len(t) > 8)
+
+
 def _first_names(users: dict[str, UserData]) -> dict[str, str]:
     """'Knut Flom Eriksen' -> 'Knut', like friends say it; full names only if two share a first name."""
     first = {k: (u.profile.display_name or k).split()[0] for k, u in users.items()}
@@ -426,7 +430,9 @@ def recommend(pool: Pool, answers: dict | None = None, limit: int = 30) -> list[
             return False
         return True
 
-    cand = [s for s in cand if keep(pool.films[s])]
+    # another version of something they've seen (a TV remake, a re-cut anthology) isn't a new film tonight
+    seen_titles = {re.sub(r" \(\d{4}\)$", "", x.name).lower() for u in pool.users for x in u.watched}
+    cand = [s for s in cand if keep(pool.films[s]) and not _seen_version(pool.films[s].title.lower(), seen_titles)]
     if not cand:
         return []
 
@@ -572,12 +578,13 @@ def _because(pool, f, s, users, seed_maps, display, solo, used_seeds) -> str | N
                 cand = (pick(4 + sd.weight, sd), f"From {next(iter(shared_d))}, director of {g.title}", u, sd)
             else:
                 # leads in both, or it's "Stars John Lithgow, from Shrek"
-                shared_c = [c for c in f.cast[:3] if c in g.cast[:3]]
+                voiced = "Animation" in f.genres or "Animation" in g.genres  # a voice isn't a face on screen
+                shared_c = [] if voiced else [c for c in f.cast[:3] if c in g.cast[:3]]
                 # Letterboxd themes are broad ("Powerful stories of heartbreak"), so it takes three plus a genre
                 shared_t = set(f.themes) & set(g.themes) if set(f.genres) & set(g.genres) else set()
                 if shared_c:
                     cand = (pick(2.5 + sd.weight, sd), f"Stars {shared_c[0]}, from {g.title}", u, sd)
-                elif len(shared_t) >= 3:
+                elif len(shared_t) >= 3 and used_seeds[sd.slug] < 2:  # the third "like Split" in a row is noise
                     cand = (pick(len(shared_t) * 0.4 + sd.weight, sd), f"Same territory as {g.title}", u, sd)
                 else:
                     continue
