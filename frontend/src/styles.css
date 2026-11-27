@@ -649,10 +649,10 @@ a { color: inherit; }
   .options.moods { grid-template-columns: repeat(3, 1fr); }
 }
 @media (max-width: 860px) {
-  .hero-grid { grid-template-columns: 1fr; }
+  .hero-grid { grid-template-columns: minmax(0, 1fr); }  /* plain 1fr can't shrink below its content */
   .hero-side { flex-direction: row; width: 100%; align-items: flex-start; order: -1; }
   .hero-side .poster { width: 120px; flex: none; }
-  .hero-side .matchcard { flex: 1; }
+  .hero-side .matchcard { flex: 1; min-width: 0; }
   .hero { padding-top: 96px; }
   .how { grid-template-columns: 1fr; gap: 16px; margin-top: 40px; }
   .now-showing { display: none; }
