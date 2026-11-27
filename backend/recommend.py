@@ -3,12 +3,13 @@
 No I/O in here, so it is fast enough to re-score live while the vibe is tweaked.
 """
 import math
+import statistics
 from datetime import date
 from bisect import bisect_left, bisect_right
 import re
 from functools import lru_cache
 from collections import Counter, defaultdict
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 
 from .letterboxd import Film, UserData
 
@@ -53,6 +54,9 @@ MOODS = {
                "philosophical", "existential", "cerebral", "enigmatic", "paranoia", "identity", "memory",
                "simulation", "nonlinear", "unreliable"],
         "anti": ["slapstick", "wholesome"],
+        # Letterboxd hangs "Surreal and thought-provoking visions of life and death" on every weighty drama and
+        # on Princess Mononoke; nobody leaves those films asking what was real
+        "ignore": ["visions of life and death"],
     },
     "dark": {
         "label": "Scary",
@@ -163,26 +167,58 @@ class Seed:
     rating: int | None
 
 
-def pick_seeds(u: UserData, n_pos: int = 40, n_neg: int = 10) -> list[Seed]:
-    """The films that best describe a user's taste: highly rated, recent first. Letterboxd likes are ignored on purpose."""
+def rating_scale(u: UserData) -> tuple[float, float]:
+    """A user's own mean and spread: 3.5★ is a rave from a harsh rater and a shrug from a generous one."""
+    rs = [f.rating for f in u.watched if f.rating]
+    if len(rs) < 20:
+        return 6.0, 2.0
+    return statistics.mean(rs), max(statistics.pstdev(rs), 1.0)
+
+
+def pick_seeds(u: UserData, n_pos: int = 40, n_neg: int = 20) -> list[Seed]:
+    """The films that best describe a user's taste, judged against their own rating habits, recent first.
+    Letterboxd likes are ignored on purpose."""
     total = max(len(u.watched), 1)
+    mean, sd = rating_scale(u)
     scored, neg = [], []
     for i, f in enumerate(u.watched):
         recency = 1 - i / total
         r = f.rating
-        if r is not None and r <= 4:
-            neg.append(Seed(f.slug, -0.6, r))
+        if r is None:
             continue
-        if r is not None and r >= 7:
-            score = (r - 6) / 2 + recency
-            w = 0.6 + (r - 6) / 8
-            scored.append((score, Seed(f.slug, w, r)))
+        z = (r - mean) / sd
+        if z <= -1.0 or r <= 3:
+            neg.append(Seed(f.slug, -_clamp(0.3 * -z, 0.3, 0.9), r))
+        elif z >= 0.6 and r >= 6:
+            scored.append((z + recency, Seed(f.slug, _clamp(0.5 + 0.25 * z, 0.5, 1.2), r)))
     scored.sort(key=lambda x: -x[0])
     pos = [s for _, s in scored[:n_pos]]
-    if len(pos) < 15:  # sparse profile: lean on whatever they watched recently
+    if len(pos) < 15:  # sparse profile: lean on what they watched recently, unless they rated it below par
         have = {s.slug for s in pos} | {s.slug for s in neg}
-        pos += [Seed(f.slug, 0.4, f.rating) for f in u.watched if f.slug not in have][: 25 - len(pos)]
+        pos += [Seed(f.slug, 0.4, f.rating) for f in u.watched
+                if f.slug not in have and (f.rating is None or f.rating >= mean)][: 25 - len(pos)]
     return pos + neg[:n_neg]
+
+
+def is_series(f: Film) -> bool:
+    """Miniseries: Letterboxd lists them as films but TMDB has no movie id."""
+    return bool(f.runtime and (f.runtime > 240 or (f.tmdb_id is None and f.runtime > 150)))
+
+
+def discovery_seeds(seeds: dict[str, list[Seed]], films: dict[str, Film], per_user: int = 16) -> list[tuple[str, str]]:
+    """(user, seed) pairs to follow into 'similar films'. Favourites several members share go first, credited to
+    each of them, so a group's new finds grow out of common ground instead of one person's corner."""
+    ok = {u: [s.slug for s in ss if s.weight > 0 and s.slug in films and not is_series(films[s.slug])]
+          for u, ss in seeds.items()}
+    lovers = defaultdict(list)
+    for u, slugs in ok.items():
+        for s in slugs:
+            lovers[s].append(u)
+    shared = [s for s in lovers if len(lovers[s]) > 1][:24] if len(seeds) > 1 else []
+    pairs = [(u, s) for s in shared for u in lovers[s]]
+    for u, slugs in ok.items():
+        pairs += [(u, s) for s in slugs if s not in shared][:per_user]
+    return pairs
 
 
 # ---------------------------------------------------------------- pool
@@ -265,6 +301,8 @@ def _count(words, text: str) -> int:
 def mood_score(f: Film, mood: str) -> tuple[float, str | None]:
     """0..1 fit for one mood, plus the theme that best shows it (for the 'why')."""
     m = MOODS[mood]
+    if m.get("ignore"):
+        f = replace(f, themes=[t for t in f.themes if not any(x in t.lower() for x in m["ignore"])])
     themes, syn = _text(f)
     genre = max((m["genres"].get(g, 0) for g in f.genres), default=0)
     # themes are Letterboxd's curated nanogenres; a synopsis saying "epic journey" is cheap talk
@@ -298,24 +336,36 @@ def fame_fit(p: float, fame: str) -> float:
 
 
 def quality(f: Film) -> float:
-    return _clamp((f.rating - 2.8) / 1.6) if f.rating else 0.35
+    # saturates at 4.0: past that, "how good" matters less than "for us" (a 4.6 1963 classic isn't a better
+    # Friday pick than a 4.0 film everyone's into)
+    return _clamp((f.rating - 2.8) / 1.2) if f.rating else 0.35
 
 
 def build_profiles(pool: Pool) -> tuple[dict[str, dict[str, float]], dict[str, float]]:
-    """Per-user feature weights and an IDF table over every film we know."""
+    """Per-user feature weights and an IDF table over every film we know.
+
+    A profile is what someone loves *more than a typical film in tonight's pool has it*: most favourites are
+    English-language dramas because most films are, so those cancel out and what's left is the real taste
+    (Villeneuve, anime, war epics). Without this, any plain drama looked like everyone's cup of tea."""
     df = Counter()
     feats = {s: features(f) for s, f in pool.films.items()}
     for fv in feats.values():
-        df.update(fv.keys())
+        df.update(fv)  # sums weights, so df[k] / n is the pool's average value of feature k
     n = max(len(feats), 1)
-    idf = {k: math.log(1 + n / (1 + c)) for k, c in df.items()}
+    # plain log(n/df): "English" or "Drama" on half the films should say very little on its own
+    idf = {k: math.log((n + 1) / (1 + c / FEATURE_WEIGHTS[k.split(":")[0]])) for k, c in df.items()}
     profiles = {}
     for user, seeds in pool.seeds.items():
         prof = defaultdict(float)
+        net = 0.0
         for sd in seeds:
-            for k, w in feats.get(sd.slug, {}).items():
-                prof[k] += sd.weight * w
-        profiles[user] = dict(prof)
+            if sd.slug in feats:
+                net += sd.weight
+                for k, w in feats[sd.slug].items():
+                    prof[k] += sd.weight * w
+        # people (directors, cast) are rare enough that their base rate is noise; only the broad strokes centre
+        profiles[user] = {k: prof.get(k, 0.0) - (0 if k.startswith(("director:", "cast:")) else net * c / n)
+                          for k, c in df.items()}
     return profiles, idf
 
 
@@ -333,6 +383,13 @@ def _rank01(values: dict[str, float]) -> dict[str, float]:
     return {s: (bisect_left(vals, v) + bisect_right(vals, v) - 1) / 2 / n for s, v in values.items()}
 
 
+def _first_names(users: dict[str, UserData]) -> dict[str, str]:
+    """'Knut Flom Eriksen' -> 'Knut', like friends say it; full names only if two share a first name."""
+    first = {k: (u.profile.display_name or k).split()[0] for k, u in users.items()}
+    clash = {n for n in first.values() if list(first.values()).count(n) > 1}
+    return {k: users[k].profile.display_name if n in clash else n for k, n in first.items()}
+
+
 def _names(names: list[str]) -> str:
     return names[0] if len(names) == 1 else ", ".join(names[:-1]) + " & " + names[-1]
 
@@ -340,7 +397,7 @@ def _names(names: list[str]) -> str:
 def recommend(pool: Pool, answers: dict | None = None, limit: int = 30) -> list[dict]:
     a = {**DEFAULT_ANSWERS, **(answers or {})}
     users = {u.profile.username: u for u in pool.users}
-    display = {k: u.profile.display_name for k, u in users.items()}
+    display = _first_names(users)
     n_users = len(users)
     solo = n_users == 1
 
@@ -359,8 +416,8 @@ def recommend(pool: Pool, answers: dict | None = None, limit: int = 30) -> list[
     def keep(f: Film) -> bool:
         if f.rating_count < 25 or (f.runtime and f.runtime < 40):
             return False  # unreleased/too obscure, or shorts
-        if f.runtime and (f.runtime > 240 or (f.tmdb_id is None and f.runtime > 150)):
-            return False  # miniseries: Letterboxd lists them as films but TMDB has no movie id
+        if is_series(f):
+            return False
         if not a["subtitles"] and f.language not in (None, "English", "No spoken language"):
             return False
         if not a["animation"] and "Animation" in f.genres:
@@ -376,8 +433,14 @@ def recommend(pool: Pool, answers: dict | None = None, limit: int = 30) -> list[
     profiles, idf = build_profiles(pool)
     feats = {s: features(pool.films[s]) for s in cand}
     raw = {u: {s: taste(feats[s], profiles.get(u, {}), idf) for s in cand} for u in users}
-    per_user = {u: _rank01(raw[u]) for u in users}
-    match = {u: _calibrated(raw[u], pool, u, profiles.get(u, {}), idf) for u in users}
+    # how close each film is to that person's own favourites (1 = as close as a typical favourite): one scale
+    # for everyone, so a film one friend merely doesn't mind can't pass for one they'd love
+    per_user = {u: _closeness(raw[u]) for u in users}
+    for s, who in pool.watchlisted.items():  # saving a film says "I want to see this": at least halfway there,
+        for u in who:                        # and taste decides the rest
+            if s in per_user.get(u, {}):
+                per_user[u][s] = 0.5 + 0.5 * per_user[u][s]
+    match = {u: {s: round(50 + 49 * c ** 1.3) for s, c in per_user[u].items()} for u in users}
     seed_maps = {u: {sd.slug: sd for sd in pool.seeds.get(u, []) if sd.weight > 0} for u in users}
 
     rel = _rank01({s: pool.films[s].rating_count for s in cand})
@@ -386,12 +449,12 @@ def recommend(pool: Pool, answers: dict | None = None, limit: int = 30) -> list[
     for s in cand:
         f = pool.films[s]
         tastes = [per_user[u][s] for u in users]
-        group_taste = 0.6 * sum(tastes) / n_users + 0.4 * min(tastes)  # nobody should hate it
+        group_taste = 0.5 * sum(tastes) / n_users + 0.5 * min(tastes)  # nobody should be stuck with it
         moods = [(m, *mood_score(f, m)) for m in a["moods"] if m in MOODS]
         fits = [sc for _, sc, _ in moods]
         wl = len(pool.watchlisted.get(s, ())) / n_users
         # what you'd pick with no mood in mind: your taste, how good it is, whether you saved it
-        score = 0.55 * group_taste + 0.3 * quality(f) + 0.15 * wl
+        score = 0.65 * group_taste + 0.25 * quality(f) + 0.1 * wl
         if f.rating:  # nobody wants a 2.3-star film recommended to them, however on-theme it is
             score *= _clamp((f.rating - 2.4) / 0.8, 0.3, 1.0)  # 3.2+ untouched, 2.8 halved
         if a["fame"] == "any":  # tilt a little toward films people have actually heard of
@@ -467,13 +530,16 @@ def recommend(pool: Pool, answers: dict | None = None, limit: int = 30) -> list[
     return out
 
 
-def _calibrated(raw: dict[str, float], pool: Pool, u: str, prof, idf) -> dict[str, int]:
-    """Map raw taste to a 50-99 'match %': 99 ~= as close as the user's own favourites."""
-    favs = sorted(taste(features(pool.films[sd.slug]), prof, idf)
-                  for sd in pool.seeds.get(u, []) if sd.weight > 0 and sd.slug in pool.films)
-    ref = favs[int(len(favs) * 0.85)] if favs else max(raw.values(), default=1)
+def _closeness(raw: dict[str, float]) -> dict[str, float]:
+    """raw taste -> 0..1 on a per-person scale: 1 = as strong a fit as this person's top 2% of tonight's options,
+    0 = no pull at all (or a push away). Linear in between, so "doesn't mind it" stays far below "would love it"
+    for everyone, unlike a rank, where a neutral film can sit in someone's top 20% of a pool built around a friend.
+    ponytail: anchored on the candidates, not on favourites; a favourite barely resembles the others for eclectic
+    taste, so it made a poor yardstick."""
+    vals = sorted(raw.values())
+    ref = vals[int(len(vals) * 0.98)] if vals else 1
     ref = ref if ref > 0 else 1
-    return {s: round(50 + 49 * _clamp(v / ref) ** 1.3) for s, v in raw.items()}
+    return {s: _clamp(v / ref) for s, v in raw.items()}
 
 
 def _because(pool, f, s, users, seed_maps, display, solo, used_seeds) -> str | None:
@@ -499,17 +565,19 @@ def _because(pool, f, s, users, seed_maps, display, solo, used_seeds) -> str | N
     for u in users:
         for sd in seed_maps[u].values():
             g = pool.films.get(sd.slug)
-            if not g or g.slug == s:
-                continue
+            if not g or g.slug == s or (g.runtime and g.runtime < 40) or is_series(g):
+                continue  # "director of Love, Death & Robots: Bad Travelling" is true and useless
             shared_d = set(f.directors) & set(g.directors)
             if shared_d:
                 cand = (pick(4 + sd.weight, sd), f"From {next(iter(shared_d))}, director of {g.title}", u, sd)
             else:
-                shared_c = [c for c in f.cast[:4] if c in g.cast[:6]]
-                shared_t = set(f.themes) & set(g.themes)
+                # leads in both, or it's "Stars John Lithgow, from Shrek"
+                shared_c = [c for c in f.cast[:3] if c in g.cast[:3]]
+                # Letterboxd themes are broad ("Powerful stories of heartbreak"), so it takes three plus a genre
+                shared_t = set(f.themes) & set(g.themes) if set(f.genres) & set(g.genres) else set()
                 if shared_c:
                     cand = (pick(2.5 + sd.weight, sd), f"Stars {shared_c[0]}, from {g.title}", u, sd)
-                elif len(shared_t) >= 2:
+                elif len(shared_t) >= 3:
                     cand = (pick(len(shared_t) * 0.4 + sd.weight, sd), f"Same territory as {g.title}", u, sd)
                 else:
                     continue

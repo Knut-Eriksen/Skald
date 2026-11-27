@@ -93,11 +93,11 @@ async def gather(j: Job) -> rec.Pool:
 
     films = await lb.films(seed_slugs, tick(0.35, 0.5, "Studying everyone's favourites"))
 
-    top_seeds = {u: [s.slug for s in ss if s.weight > 0][:SEEDS_FOR_SIMILAR] for u, ss in seeds.items()}
-    pairs = [(u, s) for u, ss in top_seeds.items() for s in ss]
+    pairs = rec.discovery_seeds(seeds, films, SEEDS_FOR_SIMILAR)
     j.update(stage="discover", message="Following the threads between films", progress=0.5)
-    sims = await asyncio.gather(*(lb.similar(s, 20) for _, s in pairs))
-    similar = dict(zip(pairs, sims))
+    slugs = list(dict.fromkeys(s for _, s in pairs))  # a shared favourite is looked up once
+    sim = dict(zip(slugs, await asyncio.gather(*(lb.similar(s, 20) for s in slugs))))
+    similar = {(u, s): sim[s] for u, s in pairs}
 
     if tmdb.KEY:
         tm_pairs = [(u, s) for u, s in pairs if films.get(s) and films[s].tmdb_id][:30]

@@ -105,10 +105,12 @@ def test_new_blockbuster_is_not_a_gem():
 
 def test_mix_keeps_new_finds():
     films = {f"w{i}": film(f"w{i}", ["Adventure"], ["Epic adventure"], rating=4.2, director=f"w{i}") for i in range(12)}
-    films |= {f"d{i}": film(f"d{i}", ["Adventure"], ["Epic adventure"], rating=3.6, director=f"d{i}") for i in range(12)}
-    u = user("ana", [], watchlist=[s for s in films if s[0] == "w"])
-    pool = Pool(users=[u], films=films, seeds={"ana": []}, watchlisted=watchlist_candidates([u])[0],
-                discovered={s: [] for s in films if s[0] == "d"})
+    films |= {f"d{i}": film(f"d{i}", ["Adventure"], ["Epic adventure", "Space quest"], rating=3.6, director=f"d{i}")
+              for i in range(12)}
+    films["seed"] = film("seed", ["Adventure"], ["Epic adventure", "Space quest"], director="s")  # finds grow from it
+    u = user("ana", [("seed", 10)], watchlist=[s for s in films if s[0] == "w"])
+    pool = Pool(users=[u], films=films, seeds={"ana": pick_seeds(u)}, watchlisted=watchlist_candidates([u])[0],
+                discovered={s: [("ana", "seed")] for s in films if s[0] == "d"}, watched_any={"seed"})
     picks = recommend(pool, {"moods": ["epic"], "source": "mix"}, limit=9)
     assert sum(p["source"] == "discovery" for p in picks) >= 3  # watchlist films are better rated, finds still show
 
@@ -123,7 +125,41 @@ def test_mood_word_boundaries():
     assert mood_score(film("p", ["Family"], ["Heartwarming and charming family"]), "cozy")[0] > 0.6
 
 
+def test_taste_is_relative_and_groups_are_fair():
+    # Ana rates generously (her 3.5★ is average) and loves action; Bo loves war dramas. Most films are dramas.
+    films = {f"a{i}": film(f"a{i}", ["Action", "Science Fiction"], ["Explosive action"], director=f"a{i}")
+             for i in range(6)}
+    films |= {f"w{i}": film(f"w{i}", ["War", "Drama"], ["Military combat"], director=f"w{i}") for i in range(6)}
+    films |= {f"x{i}": film(f"x{i}", ["Drama"], ["Moving relationship stories"], director=f"x{i}") for i in range(30)}
+    films |= {"both": film("both", ["Action", "War", "Drama"], ["Explosive action", "Military combat"]),
+              "plain": film("plain", ["Drama"], ["Moving relationship stories"], rating=4.4),
+              "zoom": film("zoom", ["Action", "Science Fiction"], ["Explosive action"], director="z")}
+    ana_ratings = [(f"a{i}", 10) for i in range(5)] + [(f"x{i}", 7) for i in range(25)]
+    ana = user("ana", ana_ratings, watchlist=["plain", "zoom"])
+    bo = user("bo", [(f"w{i}", 9) for i in range(5)] + [(f"x{i}", 5) for i in range(5, 25)], watchlist=["both"])
+    assert all(sd.slug.startswith("a") for sd in pick_seeds(ana) if sd.weight > 0)  # her 3.5★ isn't a rave
+    pool = Pool(users=[ana], films=films, seeds={"ana": pick_seeds(ana)}, watchlisted=watchlist_candidates([ana])[0],
+                watched_any={s for s, _ in ana_ratings})
+    solo = [p["film"]["slug"] for p in recommend(pool)]
+    assert solo.index("zoom") < solo.index("plain"), solo  # a 4.4 drama isn't her thing, however acclaimed
+    users = [ana, bo]
+    pool = Pool(users=users, films=films, seeds={u.profile.username: pick_seeds(u) for u in users},
+                watchlisted=watchlist_candidates(users)[0], watched_any={f.slug for u in users for f in u.watched},
+                discovered={"a5": [("ana", "a0")], "w5": [("bo", "w0")]})
+    group = [p["film"]["slug"] for p in recommend(pool, {"source": "mix"})]
+    assert group[0] == "both", group  # the one film both of them would enjoy
+
+
+def test_first_names():
+    from .recommend import _first_names
+    us = {"k": UserData(Profile("k", "Knut Flom Eriksen", None, 0), [], [], []),
+          "r": UserData(Profile("r", "rspuda", None, 0), [], [], [])}
+    assert _first_names(us) == {"k": "Knut", "r": "rspuda"}
+
+
 if __name__ == "__main__":
+    test_taste_is_relative_and_groups_are_fair()
+    test_first_names()
     test_recommend()
     test_moods_feel_human()
     test_mood_traps_from_real_data()
